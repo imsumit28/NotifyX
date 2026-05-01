@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: notifyx-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: REDIS_URL
+        sync: false   # set in Render dashboard — Upstash URL
+      - key: MONGODB_URI
+        sync: false   # set in Render dashboard — Atlas URI
+      - key: JWT_SECRET
+        sync: false   # openssl rand -hex 32
+      - key: CORS_ORIGIN
+        sync: false   # https://your-app.vercel.app
+      - key: ADMIN_SECRET
+        sync: false
+
+  - type: worker
+    name: notifyx-worker
+    runtime: node
+    rootDir: worker
+    buildCommand: npm install
+    startCommand: node src/worker.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: WORKER_CONCURRENCY
+        value: "5"

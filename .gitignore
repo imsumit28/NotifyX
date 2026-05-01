@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# Secrets (catch any missed files)
+*.key
+*.pem
+*.pub
+.ssh/
+secrets/
+config/secrets*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Runtime
+.cache/
+.tmp/

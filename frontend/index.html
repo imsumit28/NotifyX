@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NotifyX — Notification Infrastructure</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0c0c0c;
+      --bg2:     #141414;
+      --bg3:     #1a1a1a;
+      --bg4:     #202020;
+      --border:  #242424;
+      --border2: #2e2e2e;
+      --fg:      #e8e8e8;
+      --fg2:     #999;
+      --fg3:     #555;
+      --green:   #16a34a;
+      --green2:  #22c55e;
+      --red:     #dc2626;
+      --amber:   #d97706;
+      --blue:    #2563eb;
+      --blue2:   #3b82f6;
+      --violet:  #7c3aed;
+      --mono:    'JetBrains Mono', monospace;
+      --r:       8px;
+      --r2:      12px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Utilities ── */
+    .mono { font-family: var(--mono); }
+    .dim  { color: var(--fg2); }
+    .row  { display: flex; align-items: center; }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 56px;
+      background: rgba(12,12,12,.9);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      font-weight: 600; font-size: 15px;
+      text-decoration: none; color: var(--fg);
+      letter-spacing: -.3px;
+    }
+    .logo-mark {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--green); display: grid; place-items: center;
+    }
+    .logo-mark svg { display: block; }
+    nav { display: flex; gap: 2px; align-items: center; }
+    nav a {
+      color: var(--fg2); text-decoration: none;
+      font-size: 13.5px; font-weight: 450;
+      padding: 5px 11px; border-radius: 6px;
+      transition: color .12s, background .12s;
+    }
+    nav a:hover { color: var(--fg); background: var(--bg3); }
+    .btn-ghost {
+      background: none; color: var(--fg2); font-size: 13.5px; font-weight: 450;
+      padding: 5px 14px; border-radius: 6px;
+      border: 1px solid var(--border2);
+      cursor: pointer; transition: .12s; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-ghost:hover { color: var(--fg); border-color: var(--fg3); }
+    .btn-solid {
+      background: var(--fg); color: var(--bg);
+      font-size: 13.5px; font-weight: 600;
+      padding: 6px 16px; border-radius: 6px;
+      border: none; cursor: pointer; transition: .12s;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-solid:hover { background: #d0d0d0; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1120px; margin: 0 auto;
+      padding: 88px 48px 72px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; padding: 60px 24px; } }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 500; color: var(--fg3);
+      letter-spacing: .3px; margin-bottom: 20px;
+      font-family: var(--mono);
+    }
+    .hero-tag-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green2);
+      box-shadow: 0 0 0 0 rgba(34,197,94,.4);
+      animation: pulse-ring 2.4s cubic-bezier(.455,.03,.515,.955) infinite;
+    }
+    @keyframes pulse-ring {
+      0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.4); }
+      60%  { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+    h1 {
+      font-size: clamp(32px, 4.5vw, 52px);
+      font-weight: 600; line-height: 1.12;
+      letter-spacing: -1.5px;
+      margin-bottom: 18px;
+      color: var(--fg);
+    }
+    h1 em { font-style: normal; color: var(--fg3); }
+    .hero-desc {
+      font-size: 16px; color: var(--fg2); line-height: 1.65;
+      max-width: 420px; margin-bottom: 32px;
+    }
+    .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 44px; }
+    .hero-ctas .btn-solid { font-size: 14px; padding: 8px 20px; }
+    .hero-ctas .btn-ghost { font-size: 14px; padding: 8px 20px; }
+    .hero-meta {
+      display: flex; gap: 0; flex-wrap: wrap;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .hero-meta-item {
+      flex: 1; min-width: 100px;
+      padding: 12px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .hero-meta-item:last-child { border-right: none; }
+    .hero-meta-item strong {
+      display: block; font-size: 18px; font-weight: 600;
+      font-family: var(--mono); letter-spacing: -.5px;
+      color: var(--fg); margin-bottom: 2px;
+    }
+    .hero-meta-item span { font-size: 12px; color: var(--fg3); }
+
+    /* Hero code window */
+    .code-window {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.75;
+    }
+    .code-window-bar {
+      display: flex; align-items: center; gap: 7px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #3a1f1f; border: 1px solid #5a2020; }
+    .dot-y { background: #2e2710; border: 1px solid #4a3e10; }
+    .dot-g { background: #0f2a14; border: 1px solid #1a4520; }
+    .code-window-label { font-size: 11.5px; color: var(--fg3); margin-left: 4px; }
+    .code-window-body { padding: 20px 22px; }
+    .code-window-body .line { white-space: pre; }
+    .ck { color: #569cd6; }
+    .cs { color: #ce9178; }
+    .cc { color: #4a5568; font-style: italic; }
+    .cp { color: #9cdcfe; }
+    .cv { color: #4ec9b0; }
+    .cn { color: #dcdcaa; }
+    .cm { color: #c586c0; }
+    .num { color: #b5cea8; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); }
+
+    /* ── Pipeline section ── */
+    .pipeline-wrap { max-width: 1120px; margin: 0 auto; padding: 72px 48px; }
+    @media (max-width: 700px) { .pipeline-wrap { padding: 48px 24px; } }
+    .section-eyebrow {
+      font-size: 11.5px; font-weight: 600; font-family: var(--mono);
+      color: var(--fg3); letter-spacing: .8px;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .section-title { font-size: 26px; font-weight: 600; letter-spacing: -.5px; margin-bottom: 8px; }
+    .section-desc { font-size: 14.5px; color: var(--fg2); max-width: 520px; line-height: 1.65; }
+    .pipeline {
+      margin-top: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 4px; flex-wrap: wrap;
+    }
+    .pipe-node {
+      flex: 1; min-width: 120px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 20px 18px;
+      text-align: center;
+    }
+    .pipe-node-icon {
+      width: 38px; height: 38px; border-radius: 9px;
+      margin: 0 auto 12px;
+      display: grid; place-items: center;
+      background: var(--bg3); border: 1px solid var(--border2);
+    }
+    .pipe-node h4 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .pipe-node p  { font-size: 11.5px; color: var(--fg3); line-height: 1.5; }
+    .pipe-arrow {
+      color: var(--fg3); flex-shrink: 0;
+      display: flex; align-items: center;
+    }
+
+    /* ── Features ── */
+    .features-wrap { max-width: 1120px; margin: 0 auto; padding: 72px 48px; }
+    @media (max-width: 700px) { .features-wrap { padding: 48px 24px; } }
+    .features-grid {
+      margin-top: 48px;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      overflow: hidden;
+    }
+    @media (max-width: 700px) { .features-grid { grid-template-columns: 1fr; } }
+    .feature {
+      background: var(--bg);
+      padding: 32px 28px;
+    }
+    .feature-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--bg3); border: 1px solid var(--border2);
+      display: grid; place-items: center;
+      margin-bottom: 16px;
+    }
+    .feature h3 { font-size: 14.5px; font-weight: 500; margin-bottom: 8px; letter-spacing: -.2px; }
+    .feature p  { font-size: 13.5px; color: var(--fg2); line-height: 1.65; }
+    .feature code {
+      font-family: var(--mono); font-size: 12px;
+      background: var(--bg3); padding: 1px 5px;
+      border-radius: 4px; color: var(--fg2);
+    }
+
+    /* ── Demo section ── */
+    .demo-wrap { max-width: 1120px; margin: 0 auto; padding: 72px 48px; }
+    @media (max-width: 700px) { .demo-wrap { padding: 48px 24px; } }
+    .demo-layout { display: grid; grid-template-columns: 420px 1fr; gap: 24px; margin-top: 48px; }
+    @media (max-width: 900px) { .demo-layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r2);
+    }
+    .panel-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-header-title { font-size: 13px; font-weight: 500; }
+    .panel-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field-label {
+      display: block; font-size: 11.5px; font-weight: 500;
+      color: var(--fg3); margin-bottom: 6px;
+      letter-spacing: .3px; text-transform: uppercase;
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    select, input[type=text], input[type=number], textarea {
+      width: 100%;
+      background: var(--bg3); border: 1px solid var(--border2);
+      color: var(--fg); font-family: inherit; font-size: 13.5px;
+      padding: 8px 11px; border-radius: 6px; outline: none;
+      transition: border-color .12s;
+      -webkit-appearance: none;
+    }
+    select:focus, input:focus, textarea:focus { border-color: var(--fg3); }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    select { cursor: pointer; }
+
+    .action-row { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .action-btn {
+      display: flex; align-items: center; gap: 9px;
+      padding: 10px 14px; border-radius: 7px;
+      font-size: 13.5px; font-weight: 500;
+      border: 1px solid var(--border2);
+      background: var(--bg3); color: var(--fg);
+      cursor: pointer; transition: background .12s, border-color .12s;
+    }
+    .action-btn:hover { background: var(--bg4); border-color: var(--fg3); }
+    .action-btn.primary { background: var(--fg); color: var(--bg); border-color: transparent; }
+    .action-btn.primary:hover { background: #d0d0d0; }
+    .action-btn svg { flex-shrink: 0; opacity: .7; }
+    .action-btn.primary svg { opacity: 1; }
+
+    /* Quick fire row */
+    .quick-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .quick-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 6px;
+      font-size: 12.5px; font-weight: 500;
+      border: 1px solid; background: none;
+      cursor: pointer; transition: opacity .12s;
+    }
+    .quick-btn:hover { opacity: .75; }
+    .quick-btn.ok     { color: var(--green2); border-color: rgba(34,197,94,.25); }
+    .quick-btn.err    { color: #f87171;       border-color: rgba(248,113,113,.25); }
+    .quick-btn.warn   { color: #fbbf24;       border-color: rgba(251,191,36,.25); }
+    .quick-btn.info   { color: var(--blue2);  border-color: rgba(59,130,246,.25); }
+
+    /* Code panel */
+    .code-panel-header {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .code-tabs { display: flex; gap: 2px; }
+    .code-tab {
+      font-size: 12px; font-weight: 500; padding: 5px 11px;
+      border-radius: 5px; border: none;
+      cursor: pointer; background: none; color: var(--fg3);
+      font-family: var(--mono); transition: .12s;
+    }
+    .code-tab.active { background: var(--bg4); color: var(--fg); }
+    .copy-btn {
+      font-size: 12px; font-weight: 500; padding: 5px 11px;
+      border-radius: 5px; border: 1px solid var(--border2);
+      cursor: pointer; background: none; color: var(--fg3);
+      font-family: var(--mono); transition: .12s;
+    }
+    .copy-btn:hover { color: var(--fg); border-color: var(--fg3); }
+    .code-output {
+      padding: 20px 22px;
+      font-family: var(--mono); font-size: 12.5px;
+      line-height: 1.75; overflow-x: auto; min-height: 220px;
+    }
+    .install-strip {
+      margin: 0 20px 20px;
+      background: var(--bg3); border-radius: 7px;
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      border: 1px solid var(--border);
+    }
+    .install-label { font-size: 11px; color: var(--fg3); margin-bottom: 3px; font-family: var(--mono); }
+    .install-cmd   { font-family: var(--mono); font-size: 13px; color: var(--green2); }
+
+    /* ── Integration steps ── */
+    .integrate-wrap { max-width: 1120px; margin: 0 auto; padding: 72px 48px; }
+    @media (max-width: 700px) { .integrate-wrap { padding: 48px 24px; } }
+    .steps-grid {
+      margin-top: 48px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    @media (max-width: 700px) { .steps-grid { grid-template-columns: 1fr; } }
+    .step-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r2); padding: 28px 24px;
+    }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--bg3); border: 1px solid var(--border2);
+      color: var(--fg3); font-size: 12px; font-weight: 600;
+      font-family: var(--mono);
+      display: grid; place-items: center;
+      margin-bottom: 18px;
+    }
+    .step-card h3 { font-size: 14.5px; font-weight: 500; margin-bottom: 8px; letter-spacing: -.2px; }
+    .step-card p  { font-size: 13.5px; color: var(--fg2); line-height: 1.65; }
+    .step-card code {
+      font-family: var(--mono); font-size: 12px;
+      background: var(--bg3); padding: 1px 5px; border-radius: 4px;
+      color: var(--fg2);
+    }
+
+    /* ── CTA ── */
+    .cta-wrap {
+      max-width: 1120px; margin: 0 auto;
+      padding: 72px 48px;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .cta-wrap h2 { font-size: 30px; font-weight: 600; letter-spacing: -.6px; margin-bottom: 10px; }
+    .cta-wrap p  { font-size: 15px; color: var(--fg2); max-width: 440px; line-height: 1.65; margin-bottom: 28px; }
+    .cta-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .cta-btns .btn-solid { font-size: 14px; padding: 10px 24px; }
+    .cta-btns .btn-ghost { font-size: 14px; padding: 10px 24px; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-left { display: flex; align-items: center; gap: 10px; }
+    .footer-left .logo-mark { width: 22px; height: 22px; border-radius: 5px; }
+    .footer-brand { font-size: 13.5px; font-weight: 600; color: var(--fg); }
+    .footer-right { display: flex; align-items: center; gap: 16px; }
+    .footer-right a { font-size: 13px; color: var(--fg3); text-decoration: none; transition: color .12s; }
+    .footer-right a:hover { color: var(--fg2); }
+    .footer-copy { font-size: 12px; color: var(--fg3); }
+
+    /* ── Toast system ── */
+    .toast-container {
+      position: fixed; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast-container.top-right    { top: 20px; right: 20px; align-items: flex-end; }
+    .toast-container.top-left     { top: 20px; left: 20px;  align-items: flex-start; }
+    .toast-container.bottom-right { bottom: 20px; right: 20px; align-items: flex-end; flex-direction: column-reverse; }
+    .toast-container.bottom-left  { bottom: 20px; left: 20px; align-items: flex-start; flex-direction: column-reverse; }
+    .toast-container.top-center   { top: 20px; left: 50%; transform: translateX(-50%); align-items: center; }
+    .toast {
+      pointer-events: all;
+      display: flex; align-items: flex-start; gap: 11px;
+      padding: 13px 15px; border-radius: 10px; border: 1px solid;
+      min-width: 290px; max-width: 360px;
+      position: relative; overflow: hidden;
+      background: var(--bg2);
+      animation: t-in .3s cubic-bezier(.34,1.3,.64,1) forwards;
+    }
+    .toast.hiding { animation: t-out .2s ease forwards; }
+    @keyframes t-in  { from { opacity:0; transform:translateX(30px) scale(.97); } to { opacity:1; transform:none; } }
+    @keyframes t-out { from { opacity:1; } to { opacity:0; transform:translateX(30px) scale(.97); } }
+    .toast.fade  { animation-name: t-fade-in; }
+    .toast.slide { animation-name: t-slide-in; }
+    .toast.scale { animation-name: t-scale-in; }
+    @keyframes t-fade-in  { from { opacity:0; } to { opacity:1; } }
+    @keyframes t-slide-in { from { opacity:0; transform:translateY(-14px); } to { opacity:1; transform:none; } }
+    @keyframes t-scale-in { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+    .toast.ok   { border-color: rgba(34,197,94,.2);  }
+    .toast.err  { border-color: rgba(248,113,113,.2); }
+    .toast.warn { border-color: rgba(251,191,36,.2);  }
+    .toast.info { border-color: rgba(59,130,246,.2);  }
+    .toast-icon { flex-shrink: 0; margin-top: 1px; }
+    .toast-body { flex: 1; min-width: 0; }
+    .toast-title { font-size: 13.5px; font-weight: 500; margin-bottom: 1px; }
+    .toast-msg   { font-size: 12.5px; color: var(--fg2); line-height: 1.5; }
+    .toast.ok   .toast-title { color: var(--green2); }
+    .toast.err  .toast-title { color: #f87171; }
+    .toast.warn .toast-title { color: #fbbf24; }
+    .toast.info .toast-title { color: var(--blue2); }
+    .toast-close {
+      flex-shrink: 0; background: none; border: none; cursor: pointer;
+      color: var(--fg3); padding: 0; transition: color .12s; line-height: 1;
+    }
+    .toast-close:hover { color: var(--fg2); }
+    .toast-bar {
+      position: absolute; bottom: 0; left: 0; height: 2px;
+      animation: bar linear forwards;
+      border-radius: 0 2px 0 0;
+    }
+    .toast.ok   .toast-bar { background: rgba(34,197,94,.5); }
+    .toast.err  .toast-bar { background: rgba(248,113,113,.5); }
+    .toast.warn .toast-bar { background: rgba(251,191,36,.5); }
+    .toast.info .toast-bar { background: rgba(59,130,246,.5); }
+    @keyframes bar { from { width:100%; } to { width:0; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <div class="logo-mark">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </div>
+    NotifyX
+  </a>
+  <nav>
+    <a href="#pipeline">Architecture</a>
+    <a href="#demo">Demo</a>
+    <a href="#integrate">Docs</a>
+    <a href="dashboard.html">Dashboard
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:2px;transform:translateY(-1px)"><path d="M7 17L17 7M7 7h10v10"/></svg>
+    </a>
+    <div style="width:1px;height:20px;background:var(--border);margin:0 6px;"></div>
+    <a class="btn-solid" href="dashboard.html">Open Dashboard</a>
+  </nav>
+</header>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div>
+    <div class="hero-tag"><span class="hero-tag-dot"></span> v1.0 · open source</div>
+    <h1>Notification<br/>infrastructure<br/><em>for your app</em></h1>
+    <p class="hero-desc">
+      A self-hosted notification backend — async queue, real-time delivery via Socket.io,
+      offline sync, and API key auth. Ships in one deploy.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn-solid" href="dashboard.html">Open Dashboard</a>
+      <a class="btn-ghost" href="#integrate">Integration guide</a>
+    </div>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <strong>&lt;50ms</strong>
+        <span>delivery latency</span>
+      </div>
+      <div class="hero-meta-item">
+        <strong>5×</strong>
+        <span>auto-retry</span>
+      </div>
+      <div class="hero-meta-item">
+        <strong>2-layer</strong>
+        <span>idempotency</span>
+      </div>
+      <div class="hero-meta-item">
+        <strong>100%</strong>
+        <span>free forever</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-window">
+    <div class="code-window-bar">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="code-window-label">notify.js</span>
+    </div>
+    <div class="code-window-body">
+      <div class="line"><span class="cc">// send from your backend</span></div>
+      <div class="line"><span class="ck">const</span> <span class="cv">res</span> = <span class="ck">await</span> <span class="cn">fetch</span>(<span class="cs">'https://YOUR_API/api/notify'</span>, {</div>
+      <div class="line">  <span class="cp">method</span>: <span class="cs">'POST'</span>,</div>
+      <div class="line">  <span class="cp">headers</span>: {</div>
+      <div class="line">    <span class="cs">'Authorization'</span>: <span class="cs">'ApiKey nx_...'</span>,</div>
+      <div class="line">    <span class="cs">'Idempotency-Key'</span>: <span class="cn">crypto</span>.<span class="cn">randomUUID</span>(),</div>
+      <div class="line">  },</div>
+      <div class="line">  <span class="cp">body</span>: <span class="cn">JSON</span>.<span class="cn">stringify</span>({</div>
+      <div class="line">    <span class="cp">recipientId</span>: <span class="cs">'user_123'</span>,</div>
+      <div class="line">    <span class="cp">type</span>:        <span class="cs">'like'</span>,</div>
+      <div class="line">    <span class="cp">payload</span>:     { <span class="cp">message</span>: <span class="cs">'Alice liked your post'</span> },</div>
+      <div class="line">  }),</div>
+      <div class="line">})</div>
+      <div class="line" style="margin-top:12px;"><span class="cc">// &rarr; 202 { status: 'queued', jobId: 'bull:...' }</span></div>
+      <div class="line" style="margin-top:4px;"><span class="cc">// worker saves to MongoDB, pushes via Socket.io</span></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── Pipeline ─────────────────────────────────────────────────────────── -->
+<div class="pipeline-wrap" id="pipeline">
+  <div class="section-eyebrow">Architecture</div>
+  <div class="section-title">How a notification travels</div>
+  <p class="section-desc">
+    API server and worker are separate Node.js processes. Redis is the only bridge —
+    no shared memory, no coupling.
+  </p>
+
+  <div class="pipeline">
+    <div class="pipe-node">
+      <div class="pipe-node-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      </div>
+      <h4>Your App</h4>
+      <p>POST /api/notify with recipient, type, payload</p>
+    </div>
+    <div class="pipe-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-node-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <h4>API Server</h4>
+      <p>Validates, deduplicates via Redis SETNX, enqueues</p>
+    </div>
+    <div class="pipe-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-node-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </div>
+      <h4>BullMQ</h4>
+      <p>Persists in Redis, retry with exponential backoff</p>
+    </div>
+    <div class="pipe-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-node-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <h4>Worker</h4>
+      <p>Saves to MongoDB, publishes to Redis Pub/Sub</p>
+    </div>
+    <div class="pipe-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-node-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </div>
+      <h4>Browser</h4>
+      <p>Socket.io delivers in real time. Offline users sync on reconnect.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── Features ─────────────────────────────────────────────────────────── -->
+<div class="features-wrap">
+  <div class="section-eyebrow">What's included</div>
+  <div class="section-title">Production patterns, out of the box</div>
+  <p class="section-desc">
+    Built around the patterns that actually matter when notifications fail in production.
+  </p>
+
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.49"/></svg>
+      </div>
+      <h3>Retry with exponential backoff</h3>
+      <p>
+        Failed jobs retry up to 5 times — delays double each attempt: 5s → 10s → 20s → 40s.
+        Jobs that exhaust all retries land in a Dead Letter Queue available at
+        <code>GET /api/dlq</code>.
+      </p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-7z"/></svg>
+      </div>
+      <h3>Real-time via Socket.io</h3>
+      <p>
+        Worker publishes to a Redis <code>user:{id}</code> channel. Socket.io server
+        subscribes and forwards to the browser room — the two processes share no
+        code, only Redis.
+      </p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Two-layer idempotency</h3>
+      <p>
+        API gate uses Redis <code>SETNX</code> with 24-hour TTL. Worker falls back to
+        a MongoDB sparse unique index. Sending the same request twice is safe — the
+        second returns 409 with no side effects.
+      </p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg2)" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>Offline sync on reconnect</h3>
+      <p>
+        Worker checks <code>online:{userId}</code> in Redis. Offline users accumulate
+        notifications with <code>delivered: false</code>. Socket.io flushes them the
+        moment the user reconnects.
+      </p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── Demo ──────────────────────────────────────────────────────────────── -->
+<div class="demo-wrap" id="demo">
+  <div class="section-eyebrow">Live demo</div>
+  <div class="section-title">Try the notification system</div>
+  <p class="section-desc">
+    Notifications running directly on this page. Configure and fire one, then
+    copy the generated integration code.
+  </p>
+
+  <!-- Quick fire -->
+  <div style="margin-top:32px;margin-bottom:24px;">
+    <div class="field-label" style="margin-bottom:10px;">Fire a preset</div>
+    <div class="quick-row">
+      <button class="quick-btn ok" onclick="quickFire('ok')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Success
+      </button>
+      <button class="quick-btn err" onclick="quickFire('err')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".6" fill="currentColor"/></svg>
+        Error
+      </button>
+      <button class="quick-btn warn" onclick="quickFire('warn')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.3 3.9L1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>
+        Warning
+      </button>
+      <button class="quick-btn info" onclick="quickFire('info')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12.01" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+        Info
+      </button>
+    </div>
+  </div>
+
+  <div class="demo-layout">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-header-title">Configure</span>
+      </div>
+      <div class="panel-body">
+        <div class="field-row">
+          <div>
+            <label class="field-label">Type</label>
+            <select id="cfg-type">
+              <option value="ok">Success</option>
+              <option value="err">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info" selected>Info</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Position</label>
+            <select id="cfg-pos">
+              <option value="top-right" selected>Top right</option>
+              <option value="top-left">Top left</option>
+              <option value="top-center">Top center</option>
+              <option value="bottom-right">Bottom right</option>
+              <option value="bottom-left">Bottom left</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label class="field-label">Title</label>
+            <input type="text" id="cfg-title" value="Notification"/>
+          </div>
+          <div>
+            <label class="field-label">Duration (ms)</label>
+            <input type="number" id="cfg-dur" value="4000" min="1000" max="12000" step="500"/>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Message</label>
+          <textarea id="cfg-msg">Your notification message here.</textarea>
+        </div>
+
+        <div class="action-row">
+          <button class="action-btn primary" onclick="firePreview()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Preview
+          </button>
+          <button class="action-btn" onclick="testSequence()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+            Test queue flow
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="code-panel-header">
+        <div class="code-tabs">
+          <button class="code-tab active" onclick="switchTab(this,'node')">Node.js</button>
+          <button class="code-tab" onclick="switchTab(this,'browser')">Browser</button>
+          <button class="code-tab" onclick="switchTab(this,'curl')">cURL</button>
+        </div>
+        <button class="copy-btn" onclick="copyCode()">Copy</button>
+      </div>
+      <div class="code-output" id="code-out"></div>
+      <div class="install-strip">
+        <div>
+          <div class="install-label">install</div>
+          <div class="install-cmd" id="install-cmd">npm install node-fetch</div>
+        </div>
+        <button class="copy-btn" onclick="copyInstall()">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── Integration ──────────────────────────────────────────────────────── -->
+<div class="integrate-wrap" id="integrate">
+  <div class="section-eyebrow">Integration</div>
+  <div class="section-title">Add notifications in three steps</div>
+  <p class="section-desc">No SDK required. Standard HTTP and Socket.io.</p>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <h3>Generate an API key</h3>
+      <p>
+        Open the dashboard, sign in, and request a key under Settings.
+        Keys are prefixed <code>nx_</code> and stored as SHA-256 hashes —
+        shown once at creation.
+      </p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <h3>Call POST /api/notify</h3>
+      <p>
+        Send your key in the <code>Authorization: ApiKey</code> header.
+        Include an <code>Idempotency-Key</code> to prevent duplicate
+        delivery — the queue handles retries and backoff automatically.
+      </p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <h3>Listen via Socket.io</h3>
+      <p>
+        Connect with a JWT from <code>POST /api/auth/token</code>.
+        Subscribe to the <code>notification</code> event. Missed
+        notifications while offline are replayed on reconnect.
+      </p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── CTA ───────────────────────────────────────────────────────────────── -->
+<div class="cta-wrap">
+  <h2>Ready to integrate?</h2>
+  <p>Open the dashboard to generate an API key and start sending notifications in minutes.</p>
+  <div class="cta-btns">
+    <a class="btn-solid" href="dashboard.html">Open Dashboard</a>
+    <a class="btn-ghost" href="https://github.com" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.8c.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10.01 10.01 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+      View Source
+    </a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-left">
+    <div class="logo-mark">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </div>
+    <span class="footer-brand">NotifyX</span>
+    <span class="footer-copy" style="margin-left:8px;">— notification infrastructure</span>
+  </div>
+  <div class="footer-right">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="#integrate">Docs</a>
+    <a href="#pipeline">Architecture</a>
+    <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</footer>
+
+<div class="toast-container top-right" id="tc"></div>
+
+<script>
+  const ICONS = {
+    ok:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green2)" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><polyline points="9 12 11 14 15 10"/></svg>`,
+    err:  `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    warn: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><path d="M10.3 3.9L1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r=".7" fill="#fbbf24"/></svg>`,
+    info: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue2)" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12.01" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>`,
+  };
+  const PRESETS = {
+    ok:   { title: 'Success',  msg: 'Operation completed successfully.' },
+    err:  { title: 'Error',    msg: 'Request failed. Check logs for details.' },
+    warn: { title: 'Warning',  msg: 'Rate limit at 80% — 40 requests remaining.' },
+    info: { title: 'Info',     msg: 'Deployment v2.4.1 is rolling out now.' },
+  };
+
+  let _tid = 0;
+
+  function toast({ type='info', title, msg, dur=4000, pos='top-right', anim='' }) {
+    const tc = document.getElementById('tc');
+    tc.className = `toast-container ${pos}`;
+    const id = ++_tid;
+    const el = document.createElement('div');
+    el.className = `toast ${type}${anim?' '+anim:''}`;
+    el.id = `t-${id}`;
+    el.innerHTML =
+      `<div class="toast-icon">${ICONS[type]}</div>` +
+      `<div class="toast-body">` +
+        (title ? `<div class="toast-title">${title}</div>` : '') +
+        `<div class="toast-msg">${msg}</div>` +
+      `</div>` +
+      `<button class="toast-close" onclick="dismiss(${id})">` +
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>` +
+      `</button>` +
+      `<div class="toast-bar" style="animation-duration:${dur}ms"></div>`;
+    tc.appendChild(el);
+    setTimeout(() => dismiss(id), dur);
+  }
+
+  function dismiss(id) {
+    const el = document.getElementById(`t-${id}`);
+    if (!el) return;
+    el.classList.add('hiding');
+    setTimeout(() => el.remove(), 200);
+  }
+
+  function quickFire(type) {
+    const pos = document.getElementById('cfg-pos')?.value || 'top-right';
+    toast({ type, ...PRESETS[type], pos });
+  }
+
+  function getCfg() {
+    return {
+      type:  document.getElementById('cfg-type').value,
+      title: document.getElementById('cfg-title').value,
+      msg:   document.getElementById('cfg-msg').value,
+      dur:   parseInt(document.getElementById('cfg-dur').value) || 4000,
+      pos:   document.getElementById('cfg-pos').value,
+    };
+  }
+
+  function firePreview() { toast(getCfg()); updateCode(); }
+
+  function testSequence() {
+    const pos = getCfg().pos;
+    toast({ type:'info', title:'Queuing', msg:'Job added to BullMQ notification-queue.', dur:1800, pos });
+    setTimeout(() => toast({ type:'info',  title:'Processing', msg:'Worker picked up job — writing to MongoDB.', dur:1800, pos }), 1900);
+    setTimeout(() => toast({ type:'ok',    title:'Delivered',  msg:'Published to Redis Pub/Sub, forwarded via Socket.io.', dur:3200, pos }), 3900);
+  }
+
+  // Code generator
+  let activeTab = 'node';
+  const CODE = {
+    node: (c) =>
+      `<span class="cc">// send from Node.js</span>\n` +
+      `<span class="ck">const</span> <span class="cv">res</span> = <span class="ck">await</span> <span class="cn">fetch</span>(<span class="cs">'https://YOUR_API/api/notify'</span>, {\n` +
+      `  <span class="cp">method</span>: <span class="cs">'POST'</span>,\n` +
+      `  <span class="cp">headers</span>: {\n` +
+      `    <span class="cs">'Authorization'</span>: <span class="cs">'ApiKey nx_your_key'</span>,\n` +
+      `    <span class="cs">'Content-Type'</span>:   <span class="cs">'application/json'</span>,\n` +
+      `    <span class="cs">'Idempotency-Key'</span>: <span class="cn">crypto</span>.<span class="cn">randomUUID</span>(),\n` +
+      `  },\n` +
+      `  <span class="cp">body</span>: <span class="cn">JSON</span>.<span class="cn">stringify</span>({\n` +
+      `    <span class="cp">recipientId</span>: <span class="cs">'user_123'</span>,\n` +
+      `    <span class="cp">type</span>:        <span class="cs">'${c.type === 'ok' ? 'like' : c.type === 'err' ? 'comment' : c.type === 'warn' ? 'follow' : 'mention'}'</span>,\n` +
+      `    <span class="cp">payload</span>:     { <span class="cp">message</span>: <span class="cs">'${c.msg.replace(/'/g,"\\'")}' </span>},\n` +
+      `  }),\n` +
+      `})\n` +
+      `<span class="cc">// &rarr; 202 { status: 'queued', jobId: '...' }</span>`,
+    browser: (c) =>
+      `<span class="cc">// receive in browser</span>\n` +
+      `<span class="ck">import</span> { <span class="cv">io</span> } <span class="ck">from</span> <span class="cs">'socket.io-client'</span>\n\n` +
+      `<span class="ck">const</span> <span class="cv">socket</span> = <span class="cn">io</span>(<span class="cs">'https://YOUR_API'</span>, {\n` +
+      `  <span class="cp">auth</span>: { <span class="cp">token</span>: <span class="cv">userJwt</span> }\n` +
+      `})\n\n` +
+      `<span class="cv">socket</span>.<span class="cn">on</span>(<span class="cs">'notification'</span>, (<span class="cv">data</span>) =&gt; {\n` +
+      `  <span class="cc">// data.type, data.payload.message</span>\n` +
+      `  <span class="cn">showNotification</span>(<span class="cv">data</span>)\n` +
+      `})`,
+    curl: (c) =>
+      `<span class="cc"># send with cURL</span>\n` +
+      `<span class="cv">curl</span> -X POST https://YOUR_API/api/notify \\\\\n` +
+      `  -H <span class="cs">"Authorization: ApiKey nx_your_key"</span> \\\\\n` +
+      `  -H <span class="cs">"Content-Type: application/json"</span> \\\\\n` +
+      `  -H <span class="cs">"Idempotency-Key: $(uuidgen)"</span> \\\\\n` +
+      `  -d <span class="cs">'{"recipientId":"user_123","type":"like","payload":{"message":"${c.msg.replace(/'/g,"\\'")}"} }'</span>`,
+  };
+  const INSTALL = {
+    node:    'npm install node-fetch   # Node 18+ has fetch built in',
+    browser: 'npm install socket.io-client',
+    curl:    '# curl ships with macOS and most Linux distributions',
+  };
+
+  function updateCode() {
+    const c = getCfg();
+    document.getElementById('code-out').innerHTML = CODE[activeTab](c);
+    document.getElementById('install-cmd').textContent = INSTALL[activeTab];
+  }
+
+  function switchTab(btn, tab) {
+    activeTab = tab;
+    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    updateCode();
+  }
+
+  function copyCode() {
+    navigator.clipboard.writeText(document.getElementById('code-out').innerText)
+      .then(() => toast({ type:'ok', title:'Copied', msg:'Code copied to clipboard.', dur:2000 }));
+  }
+
+  function copyInstall() {
+    navigator.clipboard.writeText(document.getElementById('install-cmd').textContent)
+      .then(() => toast({ type:'ok', title:'Copied', msg:'Install command copied.', dur:2000 }));
+  }
+
+  // Wire live updates
+  ['cfg-type','cfg-pos','cfg-dur'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateCode);
+  });
+  document.getElementById('cfg-title').addEventListener('input', updateCode);
+  document.getElementById('cfg-msg').addEventListener('input', updateCode);
+
+  updateCode();
+</script>
+</body>
+</html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NotifyX — Real-time Notifications as a Service</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080c14;
+      --bg2:       #0d1521;
+      --bg3:       #111827;
+      --border:    #1e2d40;
+      --fg:        #e2e8f0;
+      --fg2:       #94a3b8;
+      --fg3:       #4a5568;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --yellow:    #f59e0b;
+      --blue:      #3b82f6;
+      --purple:    #8b5cf6;
+      --mono:      'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--fg); font-family: 'Inter', sans-serif; line-height: 1.6; overflow-x: hidden; }
+
+    /* ── Header ── */
+    header { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 60px; background: rgba(8,12,20,.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; text-decoration: none; color: var(--fg); }
+    .logo-mark { width: 30px; height: 30px; background: var(--green); border-radius: 8px; display: grid; place-items: center; font-weight: 900; font-size: 15px; color: #000; }
+    nav { display: flex; gap: 6px; align-items: center; }
+    nav a { color: var(--fg2); text-decoration: none; font-size: 14px; padding: 6px 12px; border-radius: 7px; transition: .15s; }
+    nav a:hover { color: var(--fg); background: var(--bg3); }
+    .btn-primary { background: var(--green); color: #000; font-weight: 600; font-size: 13px; padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; transition: .15s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-outline { background: none; color: var(--fg); font-weight: 500; font-size: 13px; padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: .15s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-outline:hover { border-color: var(--fg2); }
+
+    /* ── Hero ── */
+    .hero { text-align: center; padding: 100px 20px 80px; position: relative; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(34,197,94,.08) 0%, transparent 70%); pointer-events: none; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: var(--green); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 100px; margin-bottom: 24px; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+    h1 { font-size: clamp(36px, 6vw, 72px); font-weight: 900; line-height: 1.1; letter-spacing: -2px; margin-bottom: 20px; }
+    h1 span { background: linear-gradient(135deg, var(--green) 0%, #86efac 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 18px; color: var(--fg2); max-width: 540px; margin: 0 auto 36px; }
+    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero-ctas .btn-primary { font-size: 15px; padding: 11px 24px; }
+    .hero-ctas .btn-outline { font-size: 15px; padding: 11px 24px; }
+    .hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 60px; flex-wrap: wrap; }
+    .hero-stat span:first-child { font-size: 28px; font-weight: 800; display: block; }
+    .hero-stat span:last-child { font-size: 13px; color: var(--fg2); }
+
+    /* ── Section ── */
+    section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+    .section-label { font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+    .section-title { font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; }
+    .section-sub { font-size: 16px; color: var(--fg2); margin-bottom: 48px; }
+
+    /* ── Quick Examples ── */
+    .examples-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+    .ex-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; border: 1px solid; font-size: 14px; font-weight: 600; cursor: pointer; transition: .15s; background: none; }
+    .ex-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .ex-btn.success { color: var(--green); border-color: rgba(34,197,94,.3); background: rgba(34,197,94,.08); }
+    .ex-btn.error   { color: var(--red);    border-color: rgba(239,68,68,.3);  background: rgba(239,68,68,.08);  }
+    .ex-btn.warning { color: var(--yellow); border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+    .ex-btn.info    { color: var(--blue);   border-color: rgba(59,130,246,.3); background: rgba(59,130,246,.08); }
+    .ex-btn.ai      { color: var(--purple); border-color: rgba(139,92,246,.3); background: rgba(139,92,246,.08); }
+
+    /* ── Interactive Demo ── */
+    .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 780px) { .demo-grid { grid-template-columns: 1fr; } }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 20px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-row.full { grid-template-columns: 1fr; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--fg2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+    .field select, .field input, .field textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--fg); font-family: inherit; font-size: 14px; padding: 9px 12px; border-radius: 8px; outline: none; transition: .15s; }
+    .field select:focus, .field input:focus, .field textarea:focus { border-color: var(--green); }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .toggle-row { display: flex; gap: 24px; margin: 16px 0; }
+    .toggle-item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+    .toggle { position: relative; width: 38px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track { position: absolute; inset: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; transition: .2s; cursor: pointer; }
+    .toggle input:checked + .toggle-track { background: var(--green); border-color: var(--green); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: .2s; pointer-events: none; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+    .demo-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .demo-btn { padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .demo-btn.purple { background: #4f46e5; color: white; }
+    .demo-btn.dark   { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); }
+    .demo-btn.gradient { background: linear-gradient(135deg, #4f46e5, var(--purple)); color: white; }
+    .demo-btn:hover { opacity: .85; transform: translateY(-1px); }
+
+    /* Code panel */
+    .code-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .code-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .code-title { font-size: 14px; font-weight: 700; }
+    .code-tabs { display: flex; gap: 4px; }
+    .code-tab { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer; background: none; color: var(--fg2); transition: .15s; }
+    .code-tab.active { background: var(--bg3); color: var(--fg); }
+    .copy-btn { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; background: none; color: var(--fg2); transition: .15s; }
+    .copy-btn:hover { color: var(--fg); border-color: var(--fg2); }
+    .code-body { padding: 24px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.7; overflow-x: auto; min-height: 220px; }
+    .ck  { color: #569cd6; }  /* keyword */
+    .cs  { color: #ce9178; }  /* string */
+    .cc  { color: #6a9955; }  /* comment */
+    .cp  { color: #4ec9b0; }  /* property */
+    .cv  { color: #9cdcfe; }  /* variable */
+    .cn  { color: #dcdcaa; }  /* function name */
+    .co  { color: var(--fg2); } /* operator */
+    .install-box { margin: 16px 20px; background: var(--bg3); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+    .install-label { font-size: 11px; color: var(--fg3); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+    .install-cmd { font-family: var(--mono); font-size: 14px; color: var(--green); }
+
+    /* ── How it works ── */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 700px) { .steps { grid-template-columns: 1fr; } }
+    .step { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; position: relative; }
+    .step-num { width: 36px; height: 36px; border-radius: 10px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); color: var(--green); font-weight: 800; font-size: 16px; display: grid; place-items: center; margin-bottom: 16px; }
+    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--fg2); line-height: 1.6; }
+    .step code { font-family: var(--mono); font-size: 12px; background: var(--bg3); padding: 2px 6px; border-radius: 4px; color: var(--green); }
+
+    /* ── Toast System ── */
+    .toast-container { position: fixed; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .toast-container.top-right    { top: 20px; right: 20px; align-items: flex-end; }
+    .toast-container.top-left     { top: 20px; left: 20px;  align-items: flex-start; }
+    .toast-container.bottom-right { bottom: 20px; right: 20px; align-items: flex-end; flex-direction: column-reverse; }
+    .toast-container.bottom-left  { bottom: 20px; left: 20px; align-items: flex-start; flex-direction: column-reverse; }
+    .toast-container.top-center   { top: 20px; left: 50%; transform: translateX(-50%); align-items: center; }
+
+    .toast { pointer-events: all; display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid; min-width: 300px; max-width: 380px; position: relative; overflow: hidden; animation: toast-in .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .toast.hiding { animation: toast-out .25s ease forwards; }
+
+    @keyframes toast-in  { from { opacity:0; transform:translateX(40px) scale(.95); } to { opacity:1; transform:none; } }
+    @keyframes toast-out { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(40px) scale(.95); height:0; padding:0; margin:0; } }
+
+    .toast.fade  { animation-name: toast-fade-in; }
+    .toast.slide { animation-name: toast-slide-in; }
+    .toast.scale { animation-name: toast-scale-in; }
+    @keyframes toast-fade-in  { from { opacity:0; } to { opacity:1; } }
+    @keyframes toast-slide-in { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:none; } }
+    @keyframes toast-scale-in { from { opacity:0; transform:scale(.8); } to { opacity:1; transform:none; } }
+
+    .toast.success { background: rgba(34,197,94,.08);  border-color: rgba(34,197,94,.25);  }
+    .toast.error   { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.25);  }
+    .toast.warning { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.25); }
+    .toast.info    { background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.25); }
+    .toast.ai      { background: rgba(139,92,246,.08); border-color: rgba(139,92,246,.25); }
+
+    .toast.glass { backdrop-filter: blur(16px); background: rgba(13,21,33,.7) !important; }
+
+    .toast-icon { flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px; }
+    .toast-body { flex: 1; }
+    .toast-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .toast-msg   { font-size: 13px; color: var(--fg2); }
+    .toast-close { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--fg3); padding: 0; font-size: 16px; line-height: 1; transition: .15s; }
+    .toast-close:hover { color: var(--fg); }
+    .toast-progress { position: absolute; bottom: 0; left: 0; height: 2px; animation: progress linear forwards; border-radius: 0 2px 0 0; }
+    .toast.success .toast-progress { background: var(--green); }
+    .toast.error   .toast-progress { background: var(--red); }
+    .toast.warning .toast-progress { background: var(--yellow); }
+    .toast.info    .toast-progress { background: var(--blue); }
+    .toast.ai      .toast-progress { background: var(--purple); }
+    @keyframes progress { from { width:100%; } to { width:0%; } }
+
+    .toast.success .toast-title { color: var(--green); }
+    .toast.error   .toast-title { color: var(--red); }
+    .toast.warning .toast-title { color: var(--yellow); }
+    .toast.info    .toast-title { color: var(--blue); }
+    .toast.ai      .toast-title { color: var(--purple); }
+
+    /* ── Footer ── */
+    footer { border-top: 1px solid var(--border); padding: 40px 20px; text-align: center; color: var(--fg3); font-size: 13px; }
+    footer a { color: var(--fg2); text-decoration: none; }
+    footer a:hover { color: var(--fg); }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <a class="logo" href="landing.html">
+    <div class="logo-mark">N</div>
+    NotifyX
+  </a>
+  <nav>
+    <a href="#examples">Examples</a>
+    <a href="#demo">Demo</a>
+    <a href="#integrate">Integrate</a>
+    <a href="index.html" target="_blank">Dashboard ↗</a>
+    <a class="btn-primary" href="#get-key">Get API Key →</a>
+  </nav>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="badge"><span class="badge-dot"></span> Free · Open Source · Self-hostable</div>
+  <h1>Real-time notifications<br/>done <span>right</span></h1>
+  <p>Send, queue, and deliver notifications to any user in milliseconds — with retries, offline sync, and zero setup cost.</p>
+  <div class="hero-ctas">
+    <a class="btn-primary" href="#demo">Try Live Demo →</a>
+    <a class="btn-outline" href="#integrate">View Integration Docs</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat"><span>5</span><span>Retry attempts</span></div>
+    <div class="hero-stat"><span>&lt;50ms</span><span>Delivery latency</span></div>
+    <div class="hero-stat"><span>100%</span><span>Free forever</span></div>
+    <div class="hero-stat"><span>∞</span><span>Offline sync</span></div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ── Quick Examples ── -->
+<section id="examples">
+  <div class="section-label">Quick Examples</div>
+  <div class="section-title">Trigger live toasts</div>
+  <p class="section-sub">Click any button to see a real notification using the actual system running on this page.</p>
+
+  <div class="examples-row">
+    <button class="ex-btn success" onclick="quickToast('success')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Success
+    </button>
+    <button class="ex-btn error" onclick="quickToast('error')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Error
+    </button>
+    <button class="ex-btn warning" onclick="quickToast('warning')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Warning
+    </button>
+    <button class="ex-btn info" onclick="quickToast('info')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Info
+    </button>
+    <button class="ex-btn ai" onclick="quickToast('ai')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      AI Event
+    </button>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── Interactive Demo ── -->
+<section id="demo">
+  <div class="section-label">Interactive Demo</div>
+  <div class="section-title">Configure &amp; preview</div>
+  <p class="section-sub">Customize the notification, preview it live, and copy the generated integration code.</p>
+
+  <div class="demo-grid">
+    <!-- Config Panel -->
+    <div class="card">
+      <div class="card-title">Toast Configuration</div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Theme</label>
+          <select id="cfg-theme">
+            <option value="glass">Glassmorphism</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="minimal">Minimal</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Animation</label>
+          <select id="cfg-anim">
+            <option value="spring">Spring Bounce</option>
+            <option value="fade">Fade</option>
+            <option value="slide">Slide</option>
+            <option value="scale">Scale</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Position</label>
+          <select id="cfg-pos">
+            <option value="top-right">Top Right</option>
+            <option value="top-left">Top Left</option>
+            <option value="bottom-right">Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="top-center">Top Center</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Priority</label>
+          <select id="cfg-priority">
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Notification Type</label>
+          <select id="cfg-type">
+            <option value="success">✅ Success</option>
+            <option value="error">❌ Error</option>
+            <option value="warning">⚠️ Warning</option>
+            <option value="info">ℹ️ Info</option>
+            <option value="ai">🤖 AI Event</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Duration (ms)</label>
+          <input type="number" id="cfg-duration" value="4000" min="1000" max="15000" step="500"/>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Title</label>
+          <input type="text" id="cfg-title" value="Status"/>
+        </div>
+      </div>
+
+      <div class="form-row full">
+        <div class="field">
+          <label>Message</label>
+          <textarea id="cfg-msg">System running smoothly.</textarea>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <label class="toggle-item">
+          <label class="toggle">
+            <input type="checkbox" id="cfg-icon" checked/>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+          Show Icon
+        </label>
+        <label class="toggle-item">
+          <label class="toggle">
+            <input type="checkbox" id="cfg-dismiss" checked/>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+          Dismissible
+        </label>
+      </div>
+
+      <div class="demo-btns">
+        <button class="demo-btn purple" onclick="previewToast()">▷ &nbsp;Preview Notification</button>
+        <button class="demo-btn dark"   onclick="testPromise()">⚡ &nbsp;Test Promise Flow</button>
+        <button class="demo-btn gradient" onclick="triggerAI()">🤖 &nbsp;Trigger AI Streaming</button>
+      </div>
+    </div>
+
+    <!-- Code Panel -->
+    <div class="code-card">
+      <div class="code-header">
+        <div class="code-title">Generated Code</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="code-tabs">
+            <button class="code-tab active" onclick="switchTab(this,'node')">Node.js</button>
+            <button class="code-tab" onclick="switchTab(this,'browser')">Browser</button>
+            <button class="code-tab" onclick="switchTab(this,'curl')">cURL</button>
+          </div>
+          <button class="copy-btn" onclick="copyCode()">Copy</button>
+        </div>
+      </div>
+      <div class="code-body" id="code-output"></div>
+      <div class="install-box">
+        <div>
+          <div class="install-label">Quick Install</div>
+          <div class="install-cmd" id="install-cmd">npm install node-fetch</div>
+        </div>
+        <button class="copy-btn" onclick="copyInstall()">Copy</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── How It Works ── -->
+<section id="integrate">
+  <div class="section-label">Integration</div>
+  <div class="section-title">How to integrate NotifyX</div>
+  <p class="section-sub">Three steps to add real-time notifications to any application — free, no credit card required.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Get an API Key</h3>
+      <p>Request a free API key. Your key starts with <code>nx_</code> and authenticates all requests from your backend.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Send from your server</h3>
+      <p>Call <code>POST /api/notify</code> with your API key. Specify recipient, type, and payload. That's it — NotifyX handles queueing, retries, and delivery.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Receive in real-time</h3>
+      <p>Connect your frontend via Socket.io. Users receive notifications instantly — even if they were offline, they get synced on reconnect.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- ── Get API Key ── -->
+<section id="get-key" style="text-align:center; padding: 80px 20px;">
+  <div class="section-label">Free Access</div>
+  <div class="section-title">Get your API key</div>
+  <p class="section-sub" style="margin-bottom:32px;">Open the dashboard, sign in, and generate an API key in seconds. No credit card. No limits on the free tier.</p>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <a class="btn-primary" href="index.html" target="_blank" style="font-size:15px;padding:12px 28px;">Open Dashboard →</a>
+    <a class="btn-outline" href="https://github.com" target="_blank" style="font-size:15px;padding:12px 28px;">View on GitHub</a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <p style="margin-bottom:8px;">
+    <strong style="color:var(--fg)">NotifyX</strong> — Built with Node.js, Redis, BullMQ, MongoDB, Socket.io
+  </p>
+  <p>Free forever · Open source · <a href="index.html">Dashboard</a> · <a href="#integrate">Docs</a></p>
+</footer>
+
+<!-- Toast Container -->
+<div class="toast-container top-right" id="toast-container"></div>
+
+<script>
+  // ── Toast Engine ──
+  const ICONS = {
+    success: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>`,
+    error:   `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    warning: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    info:    `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+    ai:      `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+  };
+
+  const QUICK = {
+    success: { title: 'Success',   msg: 'Operation completed successfully.',      type: 'success' },
+    error:   { title: 'Error',     msg: 'Something went wrong. Please retry.',    type: 'error'   },
+    warning: { title: 'Warning',   msg: 'Rate limit approaching (80% used).',     type: 'warning' },
+    info:    { title: 'Info',      msg: 'New deployment rolling out — v2.4.1.',   type: 'info'    },
+    ai:      { title: 'AI Event',  msg: 'Model inference completed in 142ms.',    type: 'ai'      },
+  };
+
+  let toastCount = 0;
+
+  function showToast({ type='info', title='', msg='', duration=4000, dismissible=true, showIcon=true, animation='spring', theme='', position='top-right' }) {
+    const container = document.getElementById('toast-container');
+    container.className = `toast-container ${position}`;
+
+    const id = ++toastCount;
+    const el = document.createElement('div');
+    el.className = `toast ${type}${theme === 'glass' ? ' glass' : ''}${animation !== 'spring' ? ' ' + animation : ''}`;
+    el.id = `toast-${id}`;
+    el.innerHTML = `
+      ${showIcon ? `<div class="toast-icon">${ICONS[type]}</div>` : ''}
+      <div class="toast-body">
+        ${title ? `<div class="toast-title">${title}</div>` : ''}
+        <div class="toast-msg">${msg}</div>
+      </div>
+      ${dismissible ? `<button class="toast-close" onclick="dismissToast(${id})">×</button>` : ''}
+      <div class="toast-progress" style="animation-duration:${duration}ms"></div>
+    `;
+
+    container.appendChild(el);
+    setTimeout(() => dismissToast(id), duration);
+  }
+
+  function dismissToast(id) {
+    const el = document.getElementById(`toast-${id}`);
+    if (!el) return;
+    el.classList.add('hiding');
+    setTimeout(() => el.remove(), 260);
+  }
+
+  function quickToast(type) {
+    const q = QUICK[type];
+    showToast({ ...q, duration: 4000, dismissible: true, showIcon: true, animation: 'spring', position: 'top-right' });
+  }
+
+  function getCfg() {
+    return {
+      type:       document.getElementById('cfg-type').value,
+      title:      document.getElementById('cfg-title').value,
+      msg:        document.getElementById('cfg-msg').value,
+      duration:   parseInt(document.getElementById('cfg-duration').value) || 4000,
+      dismissible:document.getElementById('cfg-dismiss').checked,
+      showIcon:   document.getElementById('cfg-icon').checked,
+      animation:  document.getElementById('cfg-anim').value,
+      theme:      document.getElementById('cfg-theme').value,
+      position:   document.getElementById('cfg-pos').value,
+      priority:   document.getElementById('cfg-priority').value,
+    };
+  }
+
+  function previewToast() { showToast(getCfg()); updateCode(); }
+
+  function testPromise() {
+    showToast({ type:'info', title:'Processing…', msg:'Sending notification to queue.', duration:1500, showIcon:true, animation:'slide', position: document.getElementById('cfg-pos').value });
+    setTimeout(() => showToast({ type:'success', title:'Delivered', msg:'Notification queued and dispatched.', duration:3000, showIcon:true, position: document.getElementById('cfg-pos').value }), 1600);
+  }
+
+  function triggerAI() {
+    const words = ['Processing request…', 'Analyzing payload…', 'Model inference running…', 'Done — 142ms'];
+    let i = 0;
+    const pos = document.getElementById('cfg-pos').value;
+    const id = ++toastCount;
+    const container = document.getElementById('toast-container');
+    container.className = `toast-container ${pos}`;
+    const el = document.createElement('div');
+    el.className = 'toast ai';
+    el.id = `toast-${id}`;
+    el.innerHTML = `<div class="toast-icon">${ICONS.ai}</div><div class="toast-body"><div class="toast-title" style="color:var(--purple)">AI Event</div><div class="toast-msg" id="ai-msg">Processing request…</div></div>`;
+    container.appendChild(el);
+    const iv = setInterval(() => {
+      i++;
+      if (i >= words.length) { clearInterval(iv); setTimeout(() => dismissToast(id), 2000); return; }
+      const m = document.getElementById('ai-msg');
+      if (m) m.textContent = words[i];
+    }, 600);
+  }
+
+  // ── Code Generation ──
+  let activeTab = 'node';
+
+  const CODE = {
+    node: (cfg) => `<span class="cc">// Send notification from your Node.js server</span>
+<span class="ck">const</span> <span class="cv">response</span> = <span class="ck">await</span> <span class="cn">fetch</span>(<span class="cs">'https://YOUR_API_URL/api/notify'</span>, {
+  <span class="cp">method</span>: <span class="cs">'POST'</span>,
+  <span class="cp">headers</span>: {
+    <span class="cs">'Authorization'</span>: <span class="cs">'ApiKey nx_your_key_here'</span>,
+    <span class="cs">'Content-Type'</span>: <span class="cs">'application/json'</span>,
+    <span class="cs">'Idempotency-Key'</span>: <span class="cn">crypto</span>.<span class="cn">randomUUID</span>(),
+  },
+  <span class="cp">body</span>: <span class="cn">JSON</span>.<span class="cn">stringify</span>({
+    <span class="cp">recipientId</span>: <span class="cs">'user_123'</span>,
+    <span class="cp">senderId</span>: <span class="cs">'my-app'</span>,
+    <span class="cp">type</span>: <span class="cs">'${cfg.type === 'ai' ? 'mention' : cfg.type === 'success' ? 'like' : 'comment'}'</span>,
+    <span class="cp">payload</span>: {
+      <span class="cp">title</span>: <span class="cs">'${cfg.title}'</span>,
+      <span class="cp">message</span>: <span class="cs">'${cfg.msg}'</span>,
+      <span class="cp">theme</span>: <span class="cs">'${cfg.theme}'</span>,
+      <span class="cp">animation</span>: <span class="cs">'${cfg.animation}'</span>,
+      <span class="cp">priority</span>: <span class="cs">'${cfg.priority}'</span>,
+    },
+  }),
+});
+<span class="cc">// Response: { status: 'queued', jobId: 'xxx' }</span>`,
+
+    browser: (cfg) => `<span class="cc">// Receive notifications in your frontend</span>
+<span class="ck">import</span> { <span class="cv">io</span> } <span class="ck">from</span> <span class="cs">'socket.io-client'</span>
+
+<span class="ck">const</span> <span class="cv">socket</span> = <span class="cn">io</span>(<span class="cs">'https://YOUR_API_URL'</span>, {
+  <span class="cp">auth</span>: { <span class="cp">token</span>: <span class="cv">userJwtToken</span> }
+})
+
+<span class="cv">socket</span>.<span class="cn">on</span>(<span class="cs">'notification'</span>, (<span class="cv">data</span>) => {
+  <span class="cc">// data.payload has your title, message, etc.</span>
+  <span class="cn">showToast</span>({
+    <span class="cp">type</span>: <span class="cv">data</span>.<span class="cv">type</span>,
+    <span class="cp">title</span>: <span class="cv">data</span>.<span class="cv">payload</span>.<span class="cv">title</span>,
+    <span class="cp">message</span>: <span class="cv">data</span>.<span class="cv">payload</span>.<span class="cv">message</span>,
+    <span class="cp">duration</span>: <span class="cs">${cfg.duration}</span>,
+    <span class="cp">dismissible</span>: <span class="cs">${cfg.dismissible}</span>,
+    <span class="cp">position</span>: <span class="cs">'${cfg.position}'</span>,
+  })
+})`,
+
+    curl: (cfg) => `<span class="cc"># Send a notification via cURL</span>
+<span class="cv">curl</span> -X POST https://YOUR_API_URL/api/notify \\
+  -H <span class="cs">"Authorization: ApiKey nx_your_key_here"</span> \\
+  -H <span class="cs">"Content-Type: application/json"</span> \\
+  -H <span class="cs">"Idempotency-Key: $(uuidgen)"</span> \\
+  -d <span class="cs">'{
+    "recipientId": "user_123",
+    "senderId": "my-app",
+    "type": "${cfg.type === 'ai' ? 'mention' : cfg.type === 'success' ? 'like' : 'comment'}",
+    "payload": {
+      "title": "${cfg.title}",
+      "message": "${cfg.msg}",
+      "priority": "${cfg.priority}"
+    }
+  }'</span>`,
+  };
+
+  const INSTALL = {
+    node: 'npm install node-fetch   # (skip if Node 18+)',
+    browser: 'npm install socket.io-client',
+    curl: 'brew install curl   # already installed on most systems',
+  };
+
+  function updateCode() {
+    const cfg = getCfg();
+    document.getElementById('code-output').innerHTML = CODE[activeTab](cfg);
+    document.getElementById('install-cmd').textContent = INSTALL[activeTab];
+  }
+
+  function switchTab(btn, tab) {
+    activeTab = tab;
+    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    updateCode();
+  }
+
+  function copyCode() {
+    const text = document.getElementById('code-output').innerText;
+    navigator.clipboard.writeText(text).then(() => showToast({ type:'success', title:'Copied!', msg:'Code copied to clipboard.', duration:2000, position:'top-right' }));
+  }
+
+  function copyInstall() {
+    const text = document.getElementById('install-cmd').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast({ type:'success', title:'Copied!', msg:'Install command copied.', duration:2000, position:'top-right' }));
+  }
+
+  // Update code whenever config changes
+  document.querySelectorAll('#cfg-theme,#cfg-anim,#cfg-pos,#cfg-priority,#cfg-type,#cfg-duration,#cfg-title,#cfg-msg,#cfg-icon,#cfg-dismiss')
+    .forEach(el => el.addEventListener('change', updateCode));
+  document.getElementById('cfg-title').addEventListener('input', updateCode);
+  document.getElementById('cfg-msg').addEventListener('input', updateCode);
+
+  // Initial render
+  updateCode();
+</script>
+</body>
+</html>
