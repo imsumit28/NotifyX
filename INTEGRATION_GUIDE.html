@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NotifyX — Integration Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:           oklch(0.985 0 0);
+      --bg-elev:      oklch(0.975 0 0);
+      --panel:        oklch(1 0 0);
+      --panel-2:      oklch(0.965 0 0);
+      --border:       oklch(0.91 0 0);
+      --border-strong:oklch(0.84 0 0);
+      --hover:        oklch(0.965 0 0);
+      --fg:           oklch(0.18 0 0);
+      --fg-muted:     oklch(0.38 0 0);
+      --fg-dim:       oklch(0.52 0 0);
+      --fg-faint:     oklch(0.64 0 0);
+      --accent:       oklch(0.56 0.13 35);
+      --accent-soft:  oklch(0.93 0.04 40);
+      --accent-border:oklch(0.75 0.08 35);
+      --green:        oklch(0.50 0.10 150);
+      --green-soft:   oklch(0.94 0.04 150);
+      --amber:        oklch(0.62 0.11 75);
+      --amber-soft:   oklch(0.95 0.05 85);
+      --red:          oklch(0.54 0.16 25);
+      --red-soft:     oklch(0.95 0.04 25);
+      --violet:       oklch(0.48 0.10 285);
+      --violet-soft:  oklch(0.94 0.03 285);
+      --shadow-sm:    0 1px 0 oklch(0 0 0 / 0.03);
+      --shadow-md:    0 1px 2px oklch(0 0 0 / 0.04), 0 4px 12px oklch(0 0 0 / 0.06);
+      --radius-sm:    4px;
+      --radius:       6px;
+      --radius-lg:    8px;
+      --sidebar-w:    220px;
+      --font-sans:    'Inter', -apple-system, system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Layout ── */
+    .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      padding: 14px 12px;
+      display: flex; flex-direction: column; gap: 2px;
+      position: sticky; top: 0; height: 100vh;
+      overflow-y: auto;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 8px 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .brand-mark {
+      width: 22px; height: 22px; border-radius: 4px;
+      background: var(--fg);
+      display: grid; place-items: center;
+      color: var(--bg); font-weight: 600; font-size: 11px;
+      font-family: var(--font-mono); letter-spacing: -0.02em;
+    }
+    .brand-name { font-weight: 600; font-size: 13px; letter-spacing: -0.01em; }
+    .brand-tag {
+      margin-left: auto; font-family: var(--font-mono); font-size: 10px;
+      color: var(--fg-faint); padding: 2px 6px;
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    .nav-section {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.10em;
+      color: var(--fg-faint); padding: 12px 10px 5px;
+      font-family: var(--font-mono); font-weight: 500;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 6px 10px; border-radius: var(--radius-sm);
+      color: var(--fg-faint); font-size: 12.5px; font-weight: 400;
+      cursor: pointer; text-decoration: none;
+      position: relative;
+      transition: background 120ms, color 120ms;
+    }
+    .nav-item::before {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+      width: 2px; border-radius: 2px; background: transparent;
+      transition: background 120ms;
+    }
+    .nav-item:hover { background: var(--panel-2); color: var(--fg-muted); }
+    .nav-item.active { background: var(--panel); color: var(--fg); font-weight: 500; box-shadow: var(--shadow-sm), 0 0 0 1px var(--border); }
+    .nav-item.active::before { background: var(--fg); }
+    .nav-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7; }
+    .nav-item.active .nav-icon { opacity: 1; }
+
+    /* ── Main ── */
+    .main { display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      height: 52px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 28px;
+      gap: 12px; position: sticky; top: 0; background: var(--bg);
+      z-index: 10;
+    }
+    .topbar-title { font-size: 13px; font-weight: 500; }
+    .topbar-sep { color: var(--border-strong); }
+    .topbar-sub { font-size: 12px; color: var(--fg-faint); }
+    .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+    .content { padding: 32px 28px; max-width: 780px; }
+
+    /* ── Typography ── */
+    .eyebrow {
+      font-family: var(--font-mono); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.10em;
+      color: var(--fg-faint); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    h1.page-title {
+      font-size: 26px; font-weight: 400;
+      letter-spacing: -0.025em; line-height: 1.1;
+      color: var(--fg); margin-bottom: 8px;
+    }
+    .page-sub { color: var(--fg-dim); font-size: 13.5px; line-height: 1.6; margin-bottom: 28px; max-width: 560px; }
+    h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 32px 0 12px; color: var(--fg); display: flex; align-items: center; gap: 8px; }
+    h2:first-of-type { margin-top: 0; }
+    h3 { font-size: 13px; font-weight: 500; margin: 20px 0 8px; color: var(--fg); }
+    p { color: var(--fg-muted); font-size: 13px; line-height: 1.65; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+    .mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+      margin-bottom: 12px;
+    }
+    .card-h {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .card-h h3 { margin: 0; font-size: 12.5px; font-weight: 500; }
+    .card-h .sub { color: var(--fg-faint); font-size: 11px; margin-top: 2px; }
+    .card-body { padding: 16px; }
+
+    /* ── Code blocks ── */
+    .code-wrap {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden; margin: 12px 0 16px;
+    }
+    .code-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; border-bottom: 1px solid var(--border);
+      background: var(--bg-elev);
+    }
+    .code-lang {
+      font-family: var(--font-mono); font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-faint);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .copy-btn {
+      font-family: var(--font-mono); font-size: 10.5px;
+      color: var(--fg-faint); background: none; border: none;
+      cursor: pointer; padding: 2px 8px; border-radius: 4px;
+      transition: color 100ms, background 100ms;
+    }
+    .copy-btn:hover { color: var(--fg); background: var(--panel); }
+    pre {
+      padding: 16px 18px; overflow-x: auto;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+      color: var(--fg);
+    }
+    .t-cm   { color: var(--fg-faint); }
+    .t-kw   { color: oklch(0.48 0.10 285); }
+    .t-str  { color: oklch(0.45 0.12 150); }
+    .t-fn   { color: oklch(0.42 0.12 220); }
+    .t-num  { color: var(--accent); }
+
+    /* ── Inline code ── */
+    code {
+      font-family: var(--font-mono); font-size: 11.5px;
+      background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 5px; color: var(--fg);
+    }
+
+    /* ── Method pills ── */
+    .method {
+      display: inline-flex; align-items: center;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      padding: 2px 7px; border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+    }
+    .method.GET    { color: var(--green);  background: var(--green-soft); }
+    .method.POST   { color: var(--violet); background: var(--violet-soft); }
+    .method.PATCH  { color: var(--amber);  background: var(--amber-soft); }
+    .method.DELETE { color: var(--red);    background: var(--red-soft); }
+
+    /* ── Endpoint rows ── */
+    .endpoint-list { display: flex; flex-direction: column; }
+    .endpoint-row {
+      display: flex; align-items: baseline; gap: 12px;
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      transition: background 80ms;
+    }
+    .endpoint-row:last-child { border-bottom: none; }
+    .endpoint-row:hover { background: var(--hover); }
+    .endpoint-path { font-family: var(--font-mono); font-size: 12px; color: var(--fg); flex: 1; }
+    .endpoint-desc { font-size: 11.5px; color: var(--fg-faint); }
+
+    /* ── Note / callout ── */
+    .note {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border-radius: var(--radius);
+      border: 1px solid var(--border); margin: 12px 0 16px;
+      font-size: 12.5px; line-height: 1.55;
+    }
+    .note-icon { flex-shrink: 0; margin-top: 1px; }
+    .note p { margin: 0; }
+    .note.info  { background: var(--violet-soft); border-color: oklch(0.78 0.06 285); color: oklch(0.35 0.10 285); }
+    .note.tip   { background: var(--green-soft);  border-color: oklch(0.78 0.07 150); color: oklch(0.32 0.10 150); }
+    .note.warn  { background: var(--amber-soft);  border-color: oklch(0.80 0.07 75);  color: oklch(0.40 0.10 75); }
+
+    /* ── Step list ── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 16px; padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      background: var(--fg); color: var(--bg);
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+      margin-top: 1px;
+    }
+    .step-body h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 500; }
+
+    /* ── Service grid ── */
+    .service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+    .service-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 14px;
+    }
+    .service-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+    .service-free { font-size: 11px; color: var(--green); font-family: var(--font-mono); margin-bottom: 4px; }
+    .service-desc { font-size: 11.5px; color: var(--fg-dim); line-height: 1.45; }
+
+    /* ── Flow ── */
+    .flow { display: flex; flex-direction: column; }
+    .flow-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 11px 16px; border-bottom: 1px solid var(--border);
+      transition: background 80ms;
+    }
+    .flow-row:last-child { border-bottom: none; }
+    .flow-row:hover { background: var(--hover); }
+    .flow-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .flow-text strong { font-size: 13px; font-weight: 500; display: block; }
+    .flow-text span { font-size: 12px; color: var(--fg-dim); }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 12px 0 16px; }
+    th { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--fg-dim); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; background: var(--panel); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--fg-muted); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--hover); }
+    td:first-child { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); }
+    .card table { margin: 0; }
+    .card th, .card td { padding: 10px 16px; }
+
+    /* ── Pill ── */
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; padding: 2px 7px; border-radius: 4px;
+      font-weight: 500;
+    }
+    .pill.ok  { color: var(--green); background: var(--green-soft); }
+    .pill.lo  { color: var(--fg-faint); background: var(--panel-2); border: 1px solid var(--border); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    @media (max-width: 820px) {
+      .sidebar { display: none; }
+      .shell { grid-template-columns: 1fr; }
+      .content { padding: 24px 18px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <span class="brand-name">NotifyX</span>
+      <span class="brand-tag">docs</span>
+    </div>
+
+    <div class="nav-section">Overview</div>
+    <a class="nav-item active" href="#overview">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 22h10M9 18v4M15 18v4"/></svg>
+      How it works
+    </a>
+    <a class="nav-item" href="#running">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+      Running locally
+    </a>
+    <a class="nav-item" href="#free-stack">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z"/></svg>
+      Free stack
+    </a>
+
+    <div class="nav-section">Integration</div>
+    <a class="nav-item" href="#apikey">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L21 8l-3-3"/></svg>
+      Get an API key
+    </a>
+    <a class="nav-item" href="#send">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Send notifications
+    </a>
+    <a class="nav-item" href="#realtime">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+      Real-time (Socket.io)
+    </a>
+    <a class="nav-item" href="#metrics">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 5-7"/></svg>
+      Metrics & charts
+    </a>
+    <a class="nav-item" href="#prefs">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h14"/></svg>
+      Preferences
+    </a>
+
+    <div class="nav-section">Reference</div>
+    <a class="nav-item" href="#api-ref">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      API reference
+    </a>
+    <a class="nav-item" href="#flow">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Delivery flow
+    </a>
+    <a class="nav-item" href="#deploy">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+      Deploy to cloud
+    </a>
+    <a class="nav-item" href="#faq">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>
+      FAQ
+    </a>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">NotifyX</span>
+      <span class="topbar-sep">/</span>
+      <span class="topbar-sub">Integration Guide</span>
+      <div class="topbar-actions">
+        <a href="http://localhost:3000/health" target="_blank" style="font-size:11.5px;color:var(--fg-faint);display:flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);text-decoration:none;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          localhost:3000
+        </a>
+        <a href="dashboard.html" style="font-size:11.5px;color:var(--fg-faint);display:flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);text-decoration:none;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M9 18v4M15 18v4M7 22h10"/></svg>
+          Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Overview ── -->
+      <section id="overview">
+        <div class="eyebrow">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 5-7"/></svg>
+          NotifyX · Integration Guide
+        </div>
+        <h1 class="page-title">Add real-time notifications<br>to any project</h1>
+        <p class="page-sub">NotifyX runs as a standalone microservice alongside your app. Your backend sends one HTTP request; your frontend connects via Socket.io. Everything else — queuing, retries, batching, offline sync — is handled automatically.</p>
+
+        <div class="card">
+          <div class="card-h">
+            <div><h3>Architecture</h3><div class="sub">how the pieces connect</div></div>
+          </div>
+          <div class="card-body" style="font-family:var(--font-mono);font-size:11.5px;line-height:2;color:var(--fg-dim);">
+<span style="color:var(--fg)">Your backend</span>  ──  POST /api/notify  ──▶  <span style="color:var(--accent)">NotifyX API :3000</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BullMQ queue<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--green)">Worker</span>  (prefs · dedup · save)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Redis Pub/Sub<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--accent)">NotifyX API :3000</span>  (Socket.io)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--fg)">Your frontend</span>  (socket.on 'notification')
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>API server</td><td>Express + Socket.io</td><td>Receives POST /notify, serves inbox, delivers via WebSocket</td></tr>
+            <tr><td>Queue</td><td>BullMQ on Redis</td><td>Async processing, 5-retry exponential backoff, dead-letter queue</td></tr>
+            <tr><td>Worker</td><td>Node.js process</td><td>Checks prefs, deduplicates, saves to DB, publishes via Pub/Sub</td></tr>
+            <tr><td>Database</td><td>MongoDB</td><td>Persistent inbox, 30-day TTL auto-archive</td></tr>
+            <tr><td>Cache / Pub-Sub</td><td>Redis (Upstash)</td><td>Presence tracking, prefs cache, cross-process delivery</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <hr/>
+
+      <!-- ── Running locally ── -->
+      <section id="running">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+          Running locally
+        </h2>
+        <p>Your <code>.env</code> files already have live MongoDB Atlas and Upstash Redis credentials. Open three terminals in the project root.</p>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+              terminal 1 — API server
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre>cd server
+npm install   <span class="t-cm"># first time only</span>
+npm start     <span class="t-cm"># → http://localhost:3000</span></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+              terminal 2 — worker
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre>cd worker
+npm install
+npm start     <span class="t-cm"># listens on BullMQ queue</span></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+              terminal 3 — frontend
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre>cd frontend
+npx serve . -l 8080   <span class="t-cm"># or open dashboard.html directly</span></pre>
+        </div>
+
+        <div class="card" style="margin-top:4px;">
+          <div class="card-body" style="padding:0;">
+            <table style="margin:0;">
+              <thead><tr><th>Page</th><th>URL</th></tr></thead>
+              <tbody>
+                <tr><td>Dashboard</td><td><a href="http://localhost:8080/dashboard.html">localhost:8080/dashboard.html</a></td></tr>
+                <tr><td>Landing page</td><td><a href="http://localhost:8080/">localhost:8080/</a></td></tr>
+                <tr><td>Bull Board</td><td><a href="http://localhost:3000/admin/queues">localhost:3000/admin/queues</a></td></tr>
+                <tr><td>Health check</td><td><a href="http://localhost:3000/health">localhost:3000/health</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="note info" style="margin-top:12px;">
+          <svg class="note-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+          <p>First visit: sign up with any user ID (3–30 alphanumeric chars) and a password (min 8 chars). The onboarding popup walks you through each screen.</p>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Free stack ── -->
+      <section id="free-stack">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z"/></svg>
+          Free stack
+        </h2>
+        <p>Every service used has a permanent free tier. No credit card needed for development.</p>
+
+        <div class="service-grid">
+          <div class="service-card">
+            <div class="service-name">MongoDB Atlas</div>
+            <div class="service-free">M0 · 512 MB</div>
+            <div class="service-desc">Persistent notification inbox with 30-day TTL</div>
+          </div>
+          <div class="service-card">
+            <div class="service-name">Upstash Redis</div>
+            <div class="service-free">10K cmds / day</div>
+            <div class="service-desc">Queue, pub/sub, presence, prefs cache</div>
+          </div>
+          <div class="service-card">
+            <div class="service-name">Render.com</div>
+            <div class="service-free">750 hrs / month</div>
+            <div class="service-desc">API server + background worker</div>
+          </div>
+          <div class="service-card">
+            <div class="service-name">Vercel</div>
+            <div class="service-free">Unlimited static</div>
+            <div class="service-desc">Frontend — zero-config deploy</div>
+          </div>
+          <div class="service-card">
+            <div class="service-name">GitHub</div>
+            <div class="service-free">Free repos</div>
+            <div class="service-desc">Source control + Render auto-deploy</div>
+          </div>
+          <div class="service-card">
+            <div class="service-name">Node.js 18+</div>
+            <div class="service-free">Free runtime</div>
+            <div class="service-desc">All npm packages, no paid deps</div>
+          </div>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Get an API key ── -->
+      <section id="apikey">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L21 8l-3-3"/></svg>
+          Get an API key
+        </h2>
+        <p>Anyone who wants to integrate opens the dashboard, signs up, and generates their own key from the <strong>API Keys</strong> tab — no admin involvement needed.</p>
+
+        <div class="card">
+          <div class="card-body" style="padding:0;">
+            <div class="flow">
+              <div class="flow-row">
+                <div class="flow-dot" style="background:var(--violet)"></div>
+                <div class="flow-text">
+                  <strong>Open the dashboard</strong>
+                  <span>Go to <code>localhost:8080/dashboard.html</code> (or your deployed URL)</span>
+                </div>
+              </div>
+              <div class="flow-row">
+                <div class="flow-dot" style="background:var(--violet)"></div>
+                <div class="flow-text">
+                  <strong>Sign up</strong>
+                  <span>Create an account with any user ID and password — takes 10 seconds</span>
+                </div>
+              </div>
+              <div class="flow-row">
+                <div class="flow-dot" style="background:var(--violet)"></div>
+                <div class="flow-text">
+                  <strong>API Keys tab → Generate Key</strong>
+                  <span>Give it a name (e.g. <code>my-blog</code>), click Generate — the full key is shown once</span>
+                </div>
+              </div>
+              <div class="flow-row">
+                <div class="flow-dot" style="background:var(--green)"></div>
+                <div class="flow-text">
+                  <strong>Copy and store it</strong>
+                  <span>Save as <code>NOTIFYX_API_KEY</code> in your project's <code>.env</code> — it won't be shown again</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <svg class="note-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          <p>The key is hashed (SHA-256) before storage — the server never holds the raw value. If lost, generate a new one and revoke the old one from the API Keys tab.</p>
+        </div>
+
+        <p>Or generate one directly with curl if you prefer:</p>
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10M7 12h6"/></svg>
+              bash
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre>curl -X POST http://localhost:3000/api/keys \
+  -H <span class="t-str">"x-admin-secret: notifyx-demo"</span> \
+  -H <span class="t-str">"Content-Type: application/json"</span> \
+  -d <span class="t-str">'{"appName":"my-blog"}'</span>
+
+<span class="t-cm"># { "key": "nx_a1b2c3...", "note": "Save this — shown once only" }</span></pre>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Send notifications ── -->
+      <section id="send">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          Send notifications
+        </h2>
+        <p>One POST request from your backend. NotifyX queues the job, processes it, and delivers to the recipient's browser in under 100ms.</p>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              javascript · node.js
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-kw">async function</span> <span class="t-fn">notify</span>({ recipientId, senderId, type, payload }) {
+  <span class="t-kw">const</span> res = <span class="t-kw">await</span> fetch(<span class="t-str">`${process.env.NOTIFYX_URL}/api/notify`</span>, {
+    method: <span class="t-str">'POST'</span>,
+    headers: {
+      <span class="t-str">'Authorization'</span>:  <span class="t-str">`ApiKey ${process.env.NOTIFYX_API_KEY}`</span>,
+      <span class="t-str">'Content-Type'</span>:   <span class="t-str">'application/json'</span>,
+      <span class="t-str">'Idempotency-Key'</span>: crypto.<span class="t-fn">randomUUID</span>(),
+    },
+    body: <span class="t-fn">JSON.stringify</span>({ recipientId, senderId, type, payload }),
+  });
+  <span class="t-kw">if</span> (!res.ok) <span class="t-kw">throw new</span> Error(<span class="t-str">'notify failed'</span>);
+  <span class="t-kw">return</span> res.<span class="t-fn">json</span>(); <span class="t-cm">// { status: 'queued', jobId: '...' }</span>
+}
+
+<span class="t-cm">// comment on a post</span>
+<span class="t-kw">await</span> <span class="t-fn">notify</span>({
+  recipientId: <span class="t-str">'user_alice'</span>,
+  senderId:    <span class="t-str">'user_bob'</span>,
+  type:        <span class="t-str">'comment'</span>,   <span class="t-cm">// like | comment | follow | mention</span>
+  payload:     { message: <span class="t-str">'Nice work!'</span>, link: <span class="t-str">'/posts/123'</span> },
+});</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              python
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-kw">import</span> requests, uuid, os
+
+<span class="t-kw">def</span> <span class="t-fn">notify</span>(recipient_id, sender_id, notif_type, payload):
+    r = requests.<span class="t-fn">post</span>(
+        f<span class="t-str">"{os.environ['NOTIFYX_URL']}/api/notify"</span>,
+        json={
+            <span class="t-str">"recipientId"</span>:    recipient_id,
+            <span class="t-str">"senderId"</span>:       sender_id,
+            <span class="t-str">"type"</span>:           notif_type,
+            <span class="t-str">"payload"</span>:        payload,
+            <span class="t-str">"idempotencyKey"</span>: str(uuid.<span class="t-fn">uuid4</span>()),
+        },
+        headers={<span class="t-str">"Authorization"</span>: f<span class="t-str">"ApiKey {os.environ['NOTIFYX_API_KEY']}"</span>},
+        timeout=<span class="t-num">5</span>,
+    )
+    r.<span class="t-fn">raise_for_status</span>()
+    <span class="t-kw">return</span> r.<span class="t-fn">json</span>()</pre>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Real-time ── -->
+      <section id="realtime">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+          Real-time delivery (Socket.io)
+        </h2>
+        <p>Connect with a JWT token. Notifications arrive in under 50ms when the user is online. If they're offline, they're synced automatically on the next connection.</p>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              javascript · browser
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-cm">// 1. get a token (signup once, login after)</span>
+<span class="t-kw">const</span> { token } = <span class="t-kw">await</span> fetch(<span class="t-str">'http://localhost:3000/api/auth/login'</span>, {
+  method: <span class="t-str">'POST'</span>,
+  headers: { <span class="t-str">'Content-Type'</span>: <span class="t-str">'application/json'</span> },
+  body: <span class="t-fn">JSON.stringify</span>({ userId: <span class="t-str">'user_alice'</span>, password: <span class="t-str">'…'</span> }),
+}).<span class="t-fn">then</span>(r => r.<span class="t-fn">json</span>());
+
+<span class="t-cm">// 2. connect</span>
+<span class="t-kw">const</span> socket = <span class="t-fn">io</span>(<span class="t-str">'http://localhost:3000'</span>, {
+  auth: { token },
+  reconnection: <span class="t-kw">true</span>,
+});
+
+<span class="t-cm">// 3. listen</span>
+socket.<span class="t-fn">on</span>(<span class="t-str">'notification'</span>, (n) => {
+  <span class="t-cm">// n = { _id, recipientId, senderId, type, payload, status, createdAt }</span>
+  <span class="t-fn">showToast</span>(n.payload.message);
+  <span class="t-fn">incrementBadge</span>();
+});
+
+socket.<span class="t-fn">on</span>(<span class="t-str">'connect'</span>,       () => console.<span class="t-fn">log</span>(<span class="t-str">'connected — missed notifs will sync'</span>));
+socket.<span class="t-fn">on</span>(<span class="t-str">'connect_error'</span>, (e) => console.<span class="t-fn">error</span>(<span class="t-str">'auth error:'</span>, e.message));</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              react hook · drop-in
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-kw">import</span> { useEffect, useState } <span class="t-kw">from</span> <span class="t-str">'react'</span>;
+<span class="t-kw">import</span> { io } <span class="t-kw">from</span> <span class="t-str">'socket.io-client'</span>;
+
+<span class="t-kw">export function</span> <span class="t-fn">useNotifyX</span>(token) {
+  <span class="t-kw">const</span> [notifications, setNotifications] = <span class="t-fn">useState</span>([]);
+  <span class="t-kw">const</span> [unread, setUnread]               = <span class="t-fn">useState</span>(<span class="t-num">0</span>);
+
+  <span class="t-fn">useEffect</span>(() => {
+    <span class="t-kw">if</span> (!token) <span class="t-kw">return</span>;
+    <span class="t-kw">const</span> s = <span class="t-fn">io</span>(<span class="t-str">'http://localhost:3000'</span>, { auth: { token } });
+    s.<span class="t-fn">on</span>(<span class="t-str">'notification'</span>, n => {
+      <span class="t-fn">setNotifications</span>(prev => [n, ...prev]);
+      <span class="t-fn">setUnread</span>(c => c + <span class="t-num">1</span>);
+    });
+    <span class="t-kw">return</span> () => s.<span class="t-fn">disconnect</span>();
+  }, [token]);
+
+  <span class="t-kw">return</span> { notifications, unread };
+}</pre>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Metrics ── -->
+      <section id="metrics">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 5-7"/></svg>
+          Metrics &amp; charts
+        </h2>
+        <p><code>GET /api/metrics</code> returns live queue stats and delivery rates. Poll it every few seconds to drive a chart.</p>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              javascript
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-kw">const</span> m = <span class="t-kw">await</span> fetch(<span class="t-str">'/api/metrics'</span>, {
+  headers: { <span class="t-str">'Authorization'</span>: <span class="t-str">`Bearer ${token}`</span> },
+}).<span class="t-fn">then</span>(r => r.<span class="t-fn">json</span>());
+
+<span class="t-cm">/*
+  m.jobs:     { waiting, active, completed, failed, delayed }
+  m.delivery: { total, success, failed, successRate, failureRate }
+  m.workers:  { active: ['worker-1'], count: 1 }
+*/</span>
+
+<span class="t-cm">// live chart — refresh every 3s</span>
+setInterval(<span class="t-kw">async</span> () => {
+  <span class="t-kw">const</span> data = <span class="t-kw">await</span> <span class="t-fn">fetchMetrics</span>(token);
+  chart.<span class="t-fn">update</span>({
+    successRate: parseFloat(data.delivery.successRate),
+    queued:      data.jobs.waiting + data.jobs.active,
+  });
+}, <span class="t-num">3000</span>);</pre>
+        </div>
+
+        <div class="note tip">
+          <svg class="note-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12l5 5L20 7"/></svg>
+          <p>The built-in dashboard already has live charts. Open <strong>dashboard.html → Metrics tab</strong> to see delivery rates, queue depth, and active workers updating in real time.</p>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Preferences ── -->
+      <section id="prefs">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h14"/></svg>
+          User preferences
+        </h2>
+        <p>Users can mute notification types, set quiet hours, or disable all delivery. The worker checks preferences before delivering — a muted type is silently dropped.</p>
+
+        <div class="code-wrap">
+          <div class="code-top">
+            <span class="code-lang">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              javascript
+            </span>
+            <button class="copy-btn" onclick="cp(this)">copy</button>
+          </div>
+          <pre><span class="t-cm">// read</span>
+<span class="t-kw">const</span> prefs = <span class="t-kw">await</span> fetch(<span class="t-str">'/api/users/preferences'</span>, {
+  headers: { <span class="t-str">'Authorization'</span>: <span class="t-str">`Bearer ${token}`</span> },
+}).<span class="t-fn">then</span>(r => r.<span class="t-fn">json</span>());
+<span class="t-cm">// { inApp: true, mutedTypes: [], quietHours: { enabled: false, startHour: 22, endHour: 8 } }</span>
+
+<span class="t-cm">// update — mute likes, enable quiet hours 11pm–7am</span>
+<span class="t-kw">await</span> fetch(<span class="t-str">'/api/users/preferences'</span>, {
+  method: <span class="t-str">'PUT'</span>,
+  headers: {
+    <span class="t-str">'Authorization'</span>: <span class="t-str">`Bearer ${token}`</span>,
+    <span class="t-str">'Content-Type'</span>:  <span class="t-str">'application/json'</span>,
+  },
+  body: <span class="t-fn">JSON.stringify</span>({
+    mutedTypes: [<span class="t-str">'like'</span>],
+    quietHours: { enabled: <span class="t-kw">true</span>, startHour: <span class="t-num">23</span>, endHour: <span class="t-num">7</span> },
+  }),
+});</pre>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── API reference ── -->
+      <section id="api-ref">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          API reference
+        </h2>
+        <p>All endpoints require <code>Authorization: Bearer &lt;token&gt;</code> or <code>Authorization: ApiKey nx_…</code> unless noted.</p>
+
+        <h3>Auth</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/auth/signup</span><span class="endpoint-desc">Create account → JWT</span></div>
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/auth/login</span><span class="endpoint-desc">Password login → JWT</span></div>
+          </div>
+        </div>
+
+        <h3>Sending</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/notify</span><span class="endpoint-desc">Enqueue a notification</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/notify/dlq</span><span class="endpoint-desc">List dead-letter jobs</span></div>
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/notify/dlq/:id/retry</span><span class="endpoint-desc">Re-queue a failed job</span></div>
+          </div>
+        </div>
+
+        <h3>Inbox</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/notifications</span><span class="endpoint-desc">Paginated inbox (?page=1&amp;limit=20&amp;status=unread)</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/notifications/unread-count</span><span class="endpoint-desc">Redis-cached badge count</span></div>
+            <div class="endpoint-row"><span class="method PATCH">PATCH</span><span class="endpoint-path">/api/notifications/:id/read</span><span class="endpoint-desc">Mark single read</span></div>
+            <div class="endpoint-row"><span class="method PATCH">PATCH</span><span class="endpoint-path">/api/notifications/mark-all-read</span><span class="endpoint-desc">Bulk mark read</span></div>
+          </div>
+        </div>
+
+        <h3>API keys</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/keys/self</span><span class="endpoint-desc">Self-service — create your own key (JWT auth)</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/keys/self</span><span class="endpoint-desc">List your keys</span></div>
+            <div class="endpoint-row"><span class="method DELETE">DELETE</span><span class="endpoint-path">/api/keys/self/:id</span><span class="endpoint-desc">Revoke your key</span></div>
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/keys</span><span class="endpoint-desc">Admin — generate any key (x-admin-secret header)</span></div>
+          </div>
+        </div>
+
+        <h3>Preferences &amp; health</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/users/preferences</span><span class="endpoint-desc">Get preferences</span></div>
+            <div class="endpoint-row"><span class="method PATCH">PATCH</span><span class="endpoint-path">/api/users/preferences</span><span class="endpoint-desc">Update preferences</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/metrics</span><span class="endpoint-desc">Queue + delivery stats</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/health</span><span class="endpoint-desc">Server health (no auth)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Delivery flow ── -->
+      <section id="flow">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Delivery flow
+        </h2>
+        <p>What happens between <code>POST /api/notify</code> and the notification appearing in the browser.</p>
+
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="flow-row">
+              <div class="flow-dot" style="background:oklch(0.48 0.10 285)"></div>
+              <div class="flow-text"><strong>Auth &amp; validate</strong><span>JWT or ApiKey check → Joi schema → Redis SETNX idempotency (24h TTL)</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:oklch(0.48 0.10 285)"></div>
+              <div class="flow-text"><strong>Enqueue to BullMQ</strong><span>Job stored in Redis. 202 returned to caller immediately. Priority 1–10.</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:var(--amber)"></div>
+              <div class="flow-text"><strong>Worker picks up job</strong><span>2nd idempotency check in MongoDB. Load user prefs (Redis cache → DB fallback).</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:var(--amber)"></div>
+              <div class="flow-text"><strong>Preference checks</strong><span>Skip if inApp off, type muted, or quiet hours active.</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:var(--green)"></div>
+              <div class="flow-text"><strong>Save to MongoDB</strong><span>Notification document created. <code>delivered: true</code> if user online, <code>false</code> if not.</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:var(--green)"></div>
+              <div class="flow-text"><strong>Redis Pub/Sub publish</strong><span>Worker publishes to <code>user:{recipientId}</code>. API server's subscriber picks it up.</span></div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-dot" style="background:var(--green)"></div>
+              <div class="flow-text"><strong>Socket.io emit</strong><span>If online: delivered live in &lt;50ms. If offline: stored as <code>delivered:false</code>, pushed on next connect.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── Deploy ── -->
+      <section id="deploy">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+          Deploy to cloud
+        </h2>
+
+        <div class="card">
+          <div class="card-body" style="padding:0;">
+            <div class="steps">
+              <div class="step" style="padding:16px;">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                  <h3>Push to GitHub</h3>
+                  <p>The <code>render.yaml</code> is already configured for auto-deploy. Just push.</p>
+                  <div class="code-wrap" style="margin-bottom:0;">
+                    <div class="code-top"><span class="code-lang">bash</span><button class="copy-btn" onclick="cp(this)">copy</button></div>
+                    <pre>git remote add origin https://github.com/YOUR_USERNAME/notifyx.git
+git push -u origin main</pre>
+                  </div>
+                </div>
+              </div>
+              <div class="step" style="padding:16px;border-top:1px solid var(--border);">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                  <h3>Deploy API + worker on Render</h3>
+                  <p>Render → New → Blueprint → connect repo. Set these env vars in the dashboard:</p>
+                  <table>
+                    <thead><tr><th>Variable</th><th>Value</th></tr></thead>
+                    <tbody>
+                      <tr><td>REDIS_URL</td><td>rediss://… from Upstash</td></tr>
+                      <tr><td>MONGODB_URI</td><td>mongodb+srv://… from Atlas</td></tr>
+                      <tr><td>JWT_SECRET</td><td>openssl rand -hex 32</td></tr>
+                      <tr><td>ADMIN_SECRET</td><td>your admin password</td></tr>
+                      <tr><td>CORS_ORIGIN</td><td>https://your-app.vercel.app</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="step" style="padding:16px;border-top:1px solid var(--border);">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                  <h3>Deploy frontend on Vercel</h3>
+                  <p>Vercel → Import → set root to <code>frontend/</code>. Then update the API URL in <code>dashboard.html</code>:</p>
+                  <div class="code-wrap" style="margin-bottom:0;">
+                    <div class="code-top"><span class="code-lang">html</span><button class="copy-btn" onclick="cp(this)">copy</button></div>
+                    <pre>window.NOTIFYX_API_URL = <span class="t-str">'https://notifyx-api.onrender.com'</span>;</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr/>
+
+      <!-- ── FAQ ── -->
+      <section id="faq">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>
+          FAQ
+        </h2>
+
+        <h3>How do I prevent duplicate notifications?</h3>
+        <p>Pass a unique <code>idempotencyKey</code> with each request. NotifyX uses two layers: Redis SETNX at the API boundary (24h TTL) and a MongoDB sparse unique index in the worker. Sending the same key twice returns <code>409 Conflict</code>.</p>
+
+        <h3>What notification types are supported?</h3>
+        <p><code>like</code>, <code>comment</code>, <code>follow</code>, <code>mention</code>. To add more, update <code>NOTIFICATION_TYPES</code> in <code>shared/constants.js</code> and the Joi enum in <code>server/src/routes/notify.js</code>.</p>
+
+        <h3>What is automatic batching?</h3>
+        <p>High-volume types (likes, follows) within a 30-second window are grouped into one notification. Five people liking the same post becomes "5 people liked your post." Configured via <code>BATCH_TYPES</code> in <code>shared/constants.js</code>.</p>
+
+        <h3>What happens if the worker crashes mid-job?</h3>
+        <p>BullMQ holds a lock on active jobs. If the worker dies, the lock expires in 30 seconds and another worker instance picks it up. After 5 failed attempts the job moves to the dead-letter queue where you can inspect and retry it.</p>
+
+        <h3>Can I run multiple workers?</h3>
+        <p>Yes — start multiple worker processes pointing at the same queue. They compete for jobs automatically. Each registers a heartbeat key in Redis; the Metrics API lists them under <code>workers.active</code>.</p>
+
+        <h3>If load increases, does it cost the server owner?</h3>
+        <p>Yes — all traffic runs through one shared Redis and MongoDB instance. For development and demos this is fine. For serious production use, each integration should deploy their own copy of the stack (15-minute setup, all free tiers).</p>
+      </section>
+
+      <div style="padding:24px 0 8px;font-family:var(--font-mono);font-size:10.5px;color:var(--fg-faint);display:flex;align-items:center;gap:16px;">
+        <span>NotifyX · Built by Sumit Kumar</span>
+        <a href="http://localhost:3000/health" style="color:var(--fg-faint);">health</a>
+        <a href="http://localhost:3000/admin/queues" style="color:var(--fg-faint);">bull board</a>
+        <a href="dashboard.html" style="color:var(--fg-faint);">dashboard</a>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+  function cp(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 1800);
+    });
+  }
+
+  // Highlight active nav on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const links    = document.querySelectorAll('.nav-item[href^="#"]');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      links.forEach(l => l.classList.remove('active'));
+      const match = document.querySelector(`.nav-item[href="#${e.target.id}"]`);
+      if (match) match.classList.add('active');
+    });
+  }, { threshold: 0.25 });
+  sections.forEach(s => io.observe(s));
+</script>
+</body>
+</html>

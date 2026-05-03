@@ -1,7 +1,7 @@
 // App shell — login, sidebar, topbar, Socket.io, screen router
 
 const { Icon } = window;
-const { Dashboard, Queue, Notifications, Settings, Metrics } = window.Screens;
+const { Dashboard, Queue, Notifications, Settings, Metrics, ApiKeys } = window.Screens;
 const { getToken, getUserId, clearAuth, login, signup, API_BASE } = window.NTFX_AUTH;
 
 // ─── Login/Signup screen ─────────────────────────────────────────────────────
@@ -181,6 +181,7 @@ const NAV = [
   { k:'queue',         label:'Queue',         icon:'queue',    screen:'Queue',   badge:'47', badgeKind:'err' },
   { k:'notifications', label:'Notifications', icon:'bell',     screen:'Inbox',   badge:'3',  badgeKind:'' },
   { k:'metrics',       label:'Metrics',       icon:'metrics',  screen:'Metrics' },
+  { k:'apikeys',       label:'API Keys',      icon:'key',      screen:'API Keys' },
   { k:'settings',      label:'Settings',      icon:'settings', screen:'Settings' },
 ];
 
@@ -246,6 +247,7 @@ const App = () => {
     case 'notifications': Screen = () => <Notifications socket={socket} onUnreadChange={setUnread}/>; break;
     case 'settings':      Screen = () => <Settings/>; break;
     case 'metrics':       Screen = () => <Metrics/>; break;
+    case 'apikeys':       Screen = () => <ApiKeys/>; break;
     default:              Screen = () => <Dashboard onNavigate={go}/>;
   }
 

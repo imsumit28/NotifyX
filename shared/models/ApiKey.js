@@ -7,6 +7,8 @@ module.exports = (mongoose) => {
     appName:    { type: String, required: true },
     active:     { type: Boolean, default: true },
     lastUsedAt: { type: Date },
+    // ownerId — the userId who created this key (null = admin-created)
+    ownerId:    { type: String, default: null, index: true },
   }, { timestamps: true });
 
   return mongoose.model('ApiKey', schema);

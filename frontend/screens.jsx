@@ -811,4 +811,171 @@ const Metrics = () => {
   );
 };
 
-window.Screens = { Dashboard, Queue, Notifications, Settings, Metrics };
+// ─── API Keys (self-service) ─────────────────────────────────────────────────
+const ApiKeys = () => {
+  const [keys,     setKeys]     = React.useState([]);
+  const [loading,  setLoading]  = React.useState(true);
+  const [appName,  setAppName]  = React.useState('');
+  const [creating, setCreating] = React.useState(false);
+  const [newKey,   setNewKey]   = React.useState(null);
+  const [copied,   setCopied]   = React.useState(false);
+  const [error,    setError]    = React.useState('');
+  const { apiFetch, getUserId } = window.NTFX_AUTH;
+
+  const load = async () => {
+    try {
+      const data = await apiFetch('/api/keys/self');
+      setKeys(Array.isArray(data) ? data : []);
+    } catch { setKeys([]); }
+    finally { setLoading(false); }
+  };
+  React.useEffect(() => { load(); }, []);
+
+  const create = async (e) => {
+    e.preventDefault();
+    if (!appName.trim()) return setError('App name is required');
+    setError(''); setCreating(true); setNewKey(null);
+    try {
+      const data = await apiFetch('/api/keys/self', {
+        method: 'POST',
+        body: JSON.stringify({ appName: appName.trim() }),
+      });
+      if (data.error) { setError(data.error); return; }
+      setNewKey(data.key); setAppName(''); load();
+    } catch (err) { setError(err.message || 'Failed'); }
+    finally { setCreating(false); }
+  };
+
+  const revoke = async (id, prefix) => {
+    if (!confirm('Revoke key ' + prefix + '? Apps using it will stop working.')) return;
+    try {
+      await apiFetch('/api/keys/self/' + id, { method: 'DELETE' });
+      setKeys(prev => prev.map(k => k._id === id ? { ...k, active: false } : k));
+    } catch (err) { alert(err.message); }
+  };
+
+  const copyKey = () => {
+    navigator.clipboard.writeText(newKey);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  };
+
+  const ago = (iso) => {
+    if (!iso) return 'never';
+    const m = Math.floor((Date.now() - new Date(iso)) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  };
+
+  const activeCount = keys.filter(k => k.active).length;
+
+  return (
+    <div className="page-content">
+      <div className="page-eyebrow">{getUserId() || 'user'}@notifyx.dev</div>
+      <h1 className="page-title">API Keys</h1>
+      <p className="sub" style={{marginBottom:28}}>
+        Generate keys so your app can send notifications via <span className="mono">POST /api/notify</span>.
+        Each key belongs to your account — max 5 active keys.
+      </p>
+
+      {/* Revealed key banner */}
+      {newKey && (
+        <div style={{background:'oklch(0.20 0.06 145)',border:'1px solid oklch(0.42 0.14 145)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <span>🎉</span>
+            <strong style={{fontSize:14,color:'oklch(0.88 0.14 145)'}}>API key created — copy it now, it won't be shown again</strong>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:10,background:'oklch(0.13 0.03 145)',borderRadius:7,padding:'10px 14px'}}>
+            <span className="mono" style={{flex:1,fontSize:12.5,wordBreak:'break-all',color:'oklch(0.92 0.12 145)'}}>{newKey}</span>
+            <button onClick={copyKey} style={{background:copied?'oklch(0.42 0.14 145)':'oklch(0.32 0.09 145)',border:'none',borderRadius:6,color:'#fff',fontSize:12,padding:'6px 14px',cursor:'pointer',fontWeight:600,flexShrink:0}}>
+              {copied ? '✓ Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create form */}
+      <div className="card" style={{marginBottom:20}}>
+        <div className="card-h">
+          <div><h3>New key</h3><div className="sub">Name it after your app or project.</div></div>
+          <span className="mono" style={{fontSize:11,color:'var(--fg-faint)'}}>{activeCount}/5 active</span>
+        </div>
+        <div className="card-body">
+          <form onSubmit={create} style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-start'}}>
+            <input value={appName} onChange={e => setAppName(e.target.value)}
+              placeholder="e.g. my-blog, portfolio, discord-bot"
+              style={{flex:1,minWidth:200,background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:7,padding:'8px 12px',color:'var(--fg)',fontSize:13.5,outline:'none'}}
+            />
+            <button type="submit" disabled={creating} className="btn btn-primary" style={{padding:'8px 20px',fontSize:13.5,opacity:creating?0.6:1}}>
+              {creating ? 'Creating…' : '+ Generate Key'}
+            </button>
+          </form>
+          {error && <div style={{marginTop:10,fontSize:13,color:'var(--red)'}}>{error}</div>}
+        </div>
+      </div>
+
+      {/* Keys table */}
+      <div className="card" style={{marginBottom:20}}>
+        <div className="card-h"><div><h3>Your keys</h3><div className="sub">{activeCount} active</div></div></div>
+        <div className="card-body" style={{padding:0}}>
+          {loading && <div style={{padding:20,color:'var(--fg-muted)',fontSize:13}}>Loading…</div>}
+          {!loading && keys.length === 0 && (
+            <div style={{padding:28,textAlign:'center',color:'var(--fg-muted)',fontSize:13}}>
+              No keys yet. Generate one above, then use it in your app.
+            </div>
+          )}
+          {keys.map((k, i) => (
+            <div key={k._id} style={{display:'grid',gridTemplateColumns:'1fr 110px 90px auto',gap:14,alignItems:'center',padding:'13px 20px',borderTop:i?'1px solid var(--border)':'none',opacity:k.active?1:0.4}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                  <span style={{fontWeight:600,fontSize:13.5}}>{k.appName}</span>
+                  <span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:20,
+                    background: k.active ? 'oklch(0.24 0.06 145)' : 'var(--bg4)',
+                    color:      k.active ? 'oklch(0.74 0.14 145)' : 'var(--fg-muted)'}}>
+                    {k.active ? 'active' : 'revoked'}
+                  </span>
+                </div>
+                <span className="mono" style={{fontSize:11.5,color:'var(--fg-muted)'}}>{k.prefix}…</span>
+              </div>
+              <div style={{fontSize:11.5,color:'var(--fg-muted)',textAlign:'right'}}>
+                <div>used {ago(k.lastUsedAt)}</div>
+              </div>
+              <div style={{fontSize:11.5,color:'var(--fg-muted)',textAlign:'right'}}>
+                <div>created {ago(k.createdAt)}</div>
+              </div>
+              {k.active
+                ? <button onClick={() => revoke(k._id, k.prefix)}
+                    style={{background:'oklch(0.21 0.07 15)',border:'1px solid oklch(0.34 0.1 15)',color:'oklch(0.74 0.15 15)',borderRadius:6,fontSize:12,padding:'5px 12px',cursor:'pointer',fontWeight:500}}>
+                    Revoke
+                  </button>
+                : <div/>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Usage example */}
+      <div className="card">
+        <div className="card-h"><div><h3>Using your key</h3><div className="sub">Server-to-server — no user login needed</div></div></div>
+        <div className="card-body">
+          <p style={{color:'var(--fg-muted)',fontSize:13,marginBottom:14}}>
+            Set <span className="mono">Authorization: ApiKey nx_your_key</span> on every request to <span className="mono">/api/notify</span>.
+            Works from any language — Node.js, Python, Go, curl, etc.
+          </p>
+          <pre style={{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:8,padding:'13px 16px',fontSize:12.5,lineHeight:1.8,overflowX:'auto',color:'var(--fg)'}}>{
+`curl -X POST http://localhost:3000/api/notify \\
+  -H "Authorization: ApiKey nx_YOUR_KEY_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{"recipientId":"user_alice","senderId":"my-app",
+       "type":"comment","payload":{"message":"Hey!"},
+       "idempotencyKey":"unique-id-001"}'`
+          }</pre>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+window.Screens = { Dashboard, Queue, Notifications, Settings, Metrics, ApiKeys };

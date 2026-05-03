@@ -46,6 +46,7 @@ const Icon = ({ name, size = 14, className = '', strokeWidth = 1.6 }) => {
     case 'eye': return (<svg {...props}><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>);
     case 'mail-open': return (<svg {...props}><path d="M21 19V9l-9-6-9 6v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M3 9l9 6 9-6"/></svg>);
     case 'copy': return (<svg {...props}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>);
+    case 'key': return (<svg {...props}><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L21 8l-3-3"/></svg>);
     default: return null;
   }
 };

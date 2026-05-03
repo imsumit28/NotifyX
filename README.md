@@ -2,6 +2,8 @@
 
 A production-grade distributed notification platform built with Node.js, Redis, BullMQ, MongoDB, and Socket.io. Designed as a portfolio-level backend demo showing real-world async patterns, fault tolerance, and real-time delivery.
 
+> **summary:** Built and deployed a real-time notification microservice used by multiple integrations — REST API, BullMQ job queue with dead-letter handling, Socket.io delivery with offline sync, Redis pub/sub, and a self-service API key dashboard.
+
 ---
 
 ## Architecture
