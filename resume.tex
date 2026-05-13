@@ -1,0 +1,100 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[left=0.4in,right=0.4in,top=0.35in,bottom=0.35in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[T1]{fontenc}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+\titleformat{\section}{\bfseries\normalsize\uppercase}{}{0em}{}[\vspace{-5pt}\rule{\linewidth}{0.7pt}]
+\titlespacing{\section}{0pt}{6pt}{3pt}
+
+\setlist[itemize]{leftmargin=1.2em, itemsep=1pt, topsep=1.5pt, parsep=0pt, partopsep=0pt}
+
+\begin{document}
+
+% ─── CONTACT INFORMATION ───
+\begin{center}
+  {\LARGE\bfseries Sumit Kumar}\\[3pt]
+  \small
+  +91-8210240106 \,$|$\,
+  \href{mailto:ersumitkumar45@gmail.com}{ersumitkumar45@gmail.com} \,$|$\,
+  \href{https://linkedin.com/in/imsumit45}{linkedin.com/in/imsumit45} \,$|$\,
+  \href{https://github.com/imsumit28}{github.com/imsumit28} \,$|$\,
+  India (Open to Remote)
+\end{center}
+
+% ─── PROFESSIONAL SUMMARY ───
+\section{Professional Summary}
+{\small Full Stack Developer with production experience building scalable MERN stack and Next.js applications featuring real-time collaboration, distributed systems, and secure authentication. Proficient in JavaScript, TypeScript, React.js, Node.js, Express.js, MongoDB, Redis, and Socket.io. Experienced with REST API design, CI/CD pipelines, Agile/Scrum workflows, and cloud deployment. Seeking a Software Engineer role in full-stack development.}
+
+% ─── TECHNICAL SKILLS ───
+\section{Technical Skills}
+{\small
+\textbf{Languages:} JavaScript (ES6+), TypeScript, Java, Python, HTML5, CSS3, SQL, Bash \\[1.5pt]
+\textbf{Frontend:} React.js, Next.js, Tailwind CSS, Vite, TipTap, Responsive Design, REST API Integration \\[1.5pt]
+\textbf{Backend:} Node.js, Express.js, Socket.io, BullMQ, JWT Authentication, OAuth 2.0, Passport.js, Nodemailer \\[1.5pt]
+\textbf{Databases:} MongoDB, Mongoose ODM, Redis, SQL \\[1.5pt]
+\textbf{DevOps \& Tools:} Git, GitHub, Docker, CI/CD, Vercel, Render, Postman, Jest, Swagger/OpenAPI, Linux \\[1.5pt]
+\textbf{Concepts:} Data Structures \& Algorithms, REST APIs, WebSockets, CRDT, MVC, Microservices, Agile, Scrum, OOP}
+
+% ─── WORK EXPERIENCE ───
+\section{Work Experience}
+
+{\small\textbf{Full Stack Developer Intern} \hfill 05/2025 -- 07/2025 \\
+\textit{EncodersPro Private Limited, Noida, India}}
+\begin{itemize}
+  \item {\small Built 3+ React.js components and Node.js REST API endpoints in a 6-member Agile/Scrum team, reducing bug backlog by 20\%}
+  \item {\small Participated in sprint planning, daily stand-ups, and peer code reviews; managed Git workflows and CI/CD pipelines}
+\end{itemize}
+
+% ─── PROJECTS ───
+\section{Projects}
+
+{\small\textbf{CollabDocs -- Real-Time Collaborative Document Editor} \,$|$\, \textit{Next.js, Node.js, TypeScript, Socket.IO, Y.js, MongoDB, Redis}\\
+\href{https://github.com/imsumit28/CollabDocs}{github.com/imsumit28/CollabDocs} \,$|$\, \href{https://collabdocs2026.vercel.app}{collabdocs2026.vercel.app}}
+\begin{itemize}
+  \item {\small Built a Google Docs-style collaborative editor with Y.js CRDT and Socket.IO enabling conflict-free multi-user editing with changes propagating in under 100ms}
+  \item {\small Integrated Groq AI writing assistant (Llama 3.3 70B) with 30 req/hr rate limiting; implemented JWT + Google OAuth with HttpOnly refresh cookies preventing XSS}
+  \item {\small Authored 45+ Jest test cases achieving 60\% coverage; documented 25+ REST endpoints via Swagger/OpenAPI with interactive examples}
+  \item {\small Deployed on Vercel/Render with 5s debounce persistence bounding DB writes to 12/min; implemented Redis pub/sub adapter for horizontal scalability}
+\end{itemize}
+
+\vspace{3pt}
+
+{\small\textbf{NotifyX -- Distributed Real-Time Notification System} \,$|$\, \textit{Node.js, Express.js, BullMQ, Redis, MongoDB, Socket.io}\\
+\href{https://github.com/imsumit28/NotifyX}{github.com/imsumit28/NotifyX}}
+\begin{itemize}
+  \item {\small Engineered async notification platform with BullMQ job queue (5-retry exponential backoff) and Dead Letter Queue with replay endpoint for fault tolerance}
+  \item {\small Implemented two-layer idempotency (Redis SETNX + MongoDB sparse unique index) eliminating duplicate notifications across restarts}
+  \item {\small Built Redis Pub/Sub to Socket.io delivery pipeline achieving sub-50ms latency with offline sync pushing undelivered notifications on reconnect}
+  \item {\small Designed sliding-window rate limiting (10K req/min global, 50/min per user) and automatic batch grouping of repeated actions within 30s windows}
+  \item {\small Shipped self-service API key dashboard enabling third-party integrations without admin involvement; keys SHA-256 hashed server-side, scoped per user with revocation support}
+\end{itemize}
+
+\vspace{3pt}
+
+{\small\textbf{DevConnect -- Real-Time Social Platform for Developers} \,$|$\, \textit{React.js, Node.js, Express.js, MongoDB, Socket.io, Cloudinary}\\
+\href{https://github.com/imsumit28/DevConnect}{github.com/imsumit28/DevConnect} \,$|$\, \href{https://devconnect2026.vercel.app}{devconnect2026.vercel.app}}
+\begin{itemize}
+  \item {\small Architected a full-stack social platform with real-time chat and follow system serving 50+ concurrent users with sub-100ms message delivery via Socket.io}
+  \item {\small Designed 12+ RESTful API endpoints for profiles, posts, and messaging with MongoDB aggregation and Cloudinary media management}
+  \item {\small Implemented JWT authentication with bcrypt hashing; deployed frontend on Vercel and backend on Render with CI/CD integration}
+\end{itemize}
+
+% ─── EDUCATION ───
+\section{Education}
+
+{\small\textbf{B.Tech, Computer Science \& Engineering (AI \& ML)} \hfill 08/2024 -- 05/2028 \\
+\textit{Vellore Institute of Technology (VIT), Bhopal, India} \hfill CGPA: 8.03/10.0 \\[1pt]
+Coursework: Data Structures \& Algorithms, Database Management Systems, Operating Systems, Object-Oriented Programming}
+
+% ─── CERTIFICATIONS ───
+\section{Certifications}
+{\small\textbf{Applied Machine Learning in Python} -- Coursera (University of Michigan) \,$|$\, \textbf{JavaScript (Intermediate)} -- HackerRank}
+
+\end{document}

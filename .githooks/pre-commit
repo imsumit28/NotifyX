@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+node scripts/secret-guard.cjs --mode=staged
+exit $?
