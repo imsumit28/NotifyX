@@ -50,8 +50,6 @@ ADMIN_SECRET=your-generated-admin-secret
 | `ADMIN_SECRET` | No | notifyx-demo | For legacy API key endpoint |
 | `CORS_ORIGIN` | Yes | * | Set to your frontend URL (not `*` in prod) |
 | `LOG_LEVEL` | No | info | `debug`, `info`, `warn`, `error` |
-| `WORKER_ID` | No | worker-1 | Unique ID per worker instance |
-| `WORKER_CONCURRENCY` | No | 5 | Jobs per worker |
 
 ### 4. Database Credentials
 

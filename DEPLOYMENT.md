@@ -22,7 +22,7 @@
 1. Push to GitHub (make sure `.env` is NOT committed)
 2. Go to [render.com](https://render.com)
 3. New → Blueprint → Connect your repo
-4. Render will auto-detect `render.yaml` and deploy API + Worker
+4. Render auto-detects `render.yaml` and deploys a single web service. There is no separate background-worker service — dispatch runs in-process via `setImmediate`.
 
 **Set environment variables in Render dashboard:**
 ```
@@ -34,8 +34,6 @@ JWT_SECRET=<generate with: openssl rand -hex 32>
 ADMIN_SECRET=<generate with: openssl rand -hex 16>
 CORS_ORIGIN=https://yourdomain.vercel.app
 LOG_LEVEL=info
-WORKER_ID=worker-1
-WORKER_CONCURRENCY=5
 ```
 
 ### Step 4: Deploy Frontend (Vercel)
@@ -79,7 +77,7 @@ curl -X POST https://your-render-api.onrender.com/api/notify \
   }'
 ```
 
-5. Check that notification arrives in real-time on dashboard
+5. Check that the notification arrives in real-time on the dashboard.
 
 ---
 
@@ -114,27 +112,7 @@ export CORS_ORIGIN=https://yourdomain.com
 npm start
 ```
 
-### Worker Deployment
-
-**1. Build for production:**
-```bash
-cd worker
-npm install --production
-```
-
-**2. Set environment variables:**
-```bash
-export NODE_ENV=production
-export REDIS_URL=rediss://...
-export MONGODB_URI=mongodb+srv://...
-export WORKER_ID=worker-1
-export WORKER_CONCURRENCY=5
-```
-
-**3. Start worker:**
-```bash
-npm start
-```
+That's the entire deployment. No separate worker process is needed — the API server handles both HTTP and dispatch in one Node.js process.
 
 ### Frontend Deployment (Static Hosting)
 
@@ -174,15 +152,14 @@ git subtree push --prefix frontend origin gh-pages
 - [ ] IP whitelist enabled on MongoDB and Redis
 - [ ] 2FA enabled on all cloud accounts
 - [ ] HTTPS/TLS enforced everywhere
-- [ ] CORS_ORIGIN set to specific domain (not `*`)
+- [ ] `CORS_ORIGIN` set to a specific domain (not `*`)
 
 ### Performance
-- [ ] Enable HTTP/2 on API server
+- [ ] Enable HTTP/2 on the API server
 - [ ] Enable gzip compression
 - [ ] Set Cache-Control headers on static files
-- [ ] Enable CDN for frontend (Vercel/Netlify default)
+- [ ] Enable CDN for the frontend (Vercel/Netlify default)
 - [ ] Monitor database query performance
-- [ ] Set appropriate worker concurrency (test load)
 
 ### Monitoring
 - [ ] Error logging configured (Sentry, LogRocket, etc.)
@@ -192,47 +169,45 @@ git subtree push --prefix frontend origin gh-pages
 - [ ] Alert on high error rate
 
 ### Scaling
-- [ ] Start with 1 worker, add more if needed
-- [ ] Monitor Redis memory usage
+- [ ] Add API instances behind a load balancer when CPU consistently exceeds budget
+- [ ] If you add a second instance, add the Socket.io Redis adapter so emits fan out across replicas (see note below)
+- [ ] Monitor Redis memory usage and command count
 - [ ] Set MongoDB auto-scaling
-- [ ] Load testing before going live
+- [ ] Load test before going live
+
+> **Scaling note.** Dispatch is in-process. `io.to(userId).emit()` only reaches sockets on the same instance — if you scale horizontally, install the Socket.io Redis adapter (`@socket.io/redis-adapter`) so emits fan out. The in-memory rate limiter also becomes per-instance; bursts can slip past the global ceiling proportionally to the replica count. Move it back to Redis only if that actually matters for your traffic.
 
 ---
 
 ## Troubleshooting Deployments
 
-| Issue | Solution |
-|-------|----------|
-| "Connection refused" on MongoDB | Check IP whitelist, credentials, and TLS |
-| "Connection refused" on Redis | Check password, TLS setting (`rediss://` vs `redis://`) |
-| Socket.io connection fails | Check CORS_ORIGIN matches frontend domain |
-| Notifications not delivering | Check user preferences aren't muting type |
-| Worker not processing | Check `REDIS_URL` and `MONGODB_URI` are same on server + worker |
-| High latency | Check worker concurrency, add more workers |
-| Database full | Delete old notifications, check TTL index |
-| Memory leak | Check for infinite loops in processors, restart workers |
+| Issue                                | Solution                                                                                  |
+|--------------------------------------|-------------------------------------------------------------------------------------------|
+| "Connection refused" on MongoDB      | Check IP whitelist, credentials, and TLS                                                  |
+| "Connection refused" on Redis        | Check password and TLS setting (`rediss://` vs `redis://`)                                |
+| Socket.io connection fails           | Verify `CORS_ORIGIN` matches the frontend domain                                          |
+| Notifications not delivering         | Check user preferences (`/api/users/preferences`) — type may be muted or `inApp` is off   |
+| `[Notify] dispatch failed` in logs   | A row didn't land in Mongo; the 202 was already returned. Inspect the stack trace.        |
+| High latency on `POST /api/notify`   | Should be <5 ms — investigate Redis latency to Upstash                                    |
+| Database full                        | Verify the 30-day TTL index is in place; or shorten the TTL                               |
 
 ---
 
 ## Zero-Downtime Deployment
 
-**For API server:**
+**For the API server:**
 1. Deploy new version to staging
 2. Test thoroughly
-3. Switch load balancer to new version
-4. Keep old version running for 5 min (rollback if needed)
-5. Shutdown old version
+3. Switch load balancer to the new version
+4. Keep the old version running for 5 min (rollback if needed)
+5. Shut down the old version
 
-**For worker:**
-1. Mark old worker for graceful shutdown
-2. Start new worker
-3. Let old worker finish current jobs (max 5 min timeout)
-4. Kill old worker
+> The previous version of this guide had separate steps for "worker" deployment. That's no longer relevant — there is no separate worker process. The API server is the only Node.js process.
 
-**For frontend:**
-1. Deploy to staging subdomain
+**For the frontend:**
+1. Deploy to a staging subdomain
 2. Test across browsers
-3. Update DNS/CDN to point to new version
+3. Update DNS/CDN to point to the new version
 4. Old version cached by browsers for ~24h
 
 ---
@@ -266,20 +241,16 @@ Store secrets in GitHub Settings → Secrets → Actions.
 If deployment breaks:
 
 1. **API Server:**
-   - Render: Click "Rollback" button in dashboard
-   - Manual: Restart previous version
+   - Render: Click "Rollback" in the dashboard
+   - Manual: Restart the previous version
 
 2. **Frontend:**
    - Vercel: Click "Rollback" in deployments
-   - Manual: Re-deploy previous commit
+   - Manual: Re-deploy the previous commit
 
-3. **Worker:**
-   - Render: Rebuild previous version
-   - Manual: Stop new, restart old process
-
-4. **Database:**
+3. **Database:**
    - Restore from backup if data is corrupted
 
 ---
 
-**For questions:** See [README.md](./README.md) and [SECURITY.md](./SECURITY.md)
+**For questions:** See [README.md](./README.md).

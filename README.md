@@ -1,8 +1,8 @@
 # NotifyX — Real-time Notification System
 
-A production-grade distributed notification platform built with Node.js, Redis, BullMQ, MongoDB, and Socket.io. Designed as a portfolio-level backend demo showing real-world async patterns, fault tolerance, and real-time delivery.
+A real-time notification platform built with Node.js, Express, Socket.io, MongoDB, and Redis. Designed as a portfolio-level backend demo: REST API in front, async dispatch in the same process via `setImmediate`, durable storage in MongoDB, and live delivery over WebSockets.
 
-> **summary:** Built and deployed a real-time notification microservice used by multiple integrations — REST API, BullMQ job queue with dead-letter handling, Socket.io delivery with offline sync, Redis pub/sub, and a self-service API key dashboard.
+> **summary:** Built and deployed a real-time notification microservice — REST API, async in-process dispatch with two-layer idempotency, Socket.io delivery with offline sync, and a self-service API key dashboard.
 
 ---
 
@@ -12,43 +12,48 @@ A production-grade distributed notification platform built with Node.js, Redis, 
 Your App (HTTP)
       │
       ▼
-┌─────────────┐   BullMQ queue   ┌──────────────┐
-│  API Server │ ───────────────► │    Worker    │
-│  :3000      │                  │  (processor) │
-└─────────────┘                  └──────────────┘
-      │                                 │
-      │ Redis Pub/Sub                   │ MongoDB save
-      ▼                                 │ + Pub/Sub publish
-┌─────────────┐                         │
-│  Socket.io  │ ◄───────────────────────┘
+┌─────────────────────────────────────────┐
+│  API Server  (Express :3000)            │
+│  ─ validate + auth + rate limit         │
+│  ─ Redis SETNX idempotency              │
+│  ─ res.status(202) ← immediate          │
+│  ─ setImmediate(dispatch)               │
+│       ├─ check prefs                    │
+│       ├─ Notification.create() (Mongo)  │
+│       └─ io.to(userId).emit()           │
+└─────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────┐
+│  Socket.io  │
 │  (browser)  │
 └─────────────┘
 ```
 
 **Key design decisions:**
-- Server and worker are completely separate npm packages — Redis is the only bridge
-- Shared models live in `shared/models/` (factory pattern) so both processes use the same schema without duplicating code
-- Redis Pub/Sub subscriber uses a dedicated connection (BullMQ requirement)
-- JWT auth on all API routes + Socket.io handshake
-- Two-layer idempotency: Redis SETNX at API boundary + MongoDB sparse unique index in worker
-- Offline sync: worker stores `delivered: false`; socket server pushes pending on reconnect
+- **One process.** Dispatch runs inline in the API server via `setImmediate` and emits straight through Socket.io — no separate worker process, no broker between accept and deliver.
+- **Redis is reserved for what genuinely needs it:** idempotency (`SET NX`), unread badge caching, preference caching, delivery counters. No queue, no Pub/Sub, no presence polling.
+- **In-memory online presence** via Socket.io rooms (`io.sockets.adapter.rooms.get(userId)`). No `online:{userId}` heartbeat keys.
+- **In-memory rate limiter** (per-instance `Map` with a cleanup `setInterval`). Avoids spending a Redis command per request.
+- **Two-layer idempotency:** Redis `SET NX` at the API boundary (24h TTL) + MongoDB sparse unique index in the dispatcher. The second layer catches dupes if Redis is wiped.
+- **Offline sync:** if recipient isn't connected, the row is saved with `delivered: false` and pushed when their socket reconnects.
+
+> Earlier versions of this project used a BullMQ queue + separate worker + Redis Pub/Sub bridge. That was removed because BullMQ's continuous polling (`BZPOPMIN`, `EVALSHA`, `ZRANGE`) was burning hundreds of thousands of Upstash commands per month with zero users and preventing Render's free tier from auto-sleeping the service.
 
 ---
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| API server | Express.js |
-| Real-time | Socket.io |
-| Job queue | BullMQ |
-| Queue store | Redis (Upstash) |
-| Database | MongoDB (Atlas) |
-| ODM | Mongoose |
-| Auth | JWT (jsonwebtoken) |
-| Validation | Joi |
-| Queue UI | Bull Board |
-| Frontend | React via CDN (no build step) |
+| Layer       | Technology                       |
+|-------------|----------------------------------|
+| API server  | Express.js                       |
+| Real-time   | Socket.io                        |
+| Database    | MongoDB (Atlas)                  |
+| ODM         | Mongoose                         |
+| Cache       | Redis (Upstash) — idempotency + caches only |
+| Auth        | JWT (jsonwebtoken) + API keys (SHA-256 hashed) |
+| Validation  | Joi                              |
+| Frontend    | React via CDN (no build step)    |
 
 ---
 
@@ -57,56 +62,37 @@ Your App (HTTP)
 ```
 NotifyX/
 ├── shared/
-│   ├── constants.js            # Queue names, channel prefix, defaults
+│   ├── constants.js            # Channel prefix, defaults, notification types
 │   └── models/
-│       ├── Notification.js     # Factory fn — recipientId, type, payload, delivered
-│       ├── User.js             # Factory fn — userId, preferences
-│       └── ApiKey.js           # Factory fn — keyHash, prefix, appName
+│       ├── Notification.js     # Factory — recipientId, type, payload, delivered
+│       ├── User.js             # Factory — userId, preferences
+│       └── ApiKey.js           # Factory — keyHash, prefix, appName
 │
-├── server/                     # npm package — API + Socket.io
+├── server/                     # npm package — API + Socket.io + inline dispatcher
 │   └── src/
-│       ├── app.js              # Entry point — DB, Redis, routes, Bull Board
+│       ├── app.js              # Entry point — DB, Redis, routes, Socket.io
 │       ├── models.js           # Initializes shared models with server's mongoose
 │       ├── config/
 │       │   ├── db.js           # MongoDB connection
 │       │   └── redis.js        # ioredis factory (handles rediss:// TLS)
 │       ├── middleware/
 │       │   ├── auth.js         # JWT + ApiKey middleware
-│       │   └── rateLimiter.js  # Sliding window — 10K/min global, 50/min per user
-│       ├── queues/
-│       │   └── notificationQueue.js
+│       │   └── rateLimiter.js  # In-memory fixed-window limiter
 │       ├── routes/
 │       │   ├── auth.js         # POST /api/auth/signup, /login, /token
-│       │   ├── notify.js       # POST /api/notify, DLQ endpoints
+│       │   ├── notify.js       # POST /api/notify — inline setImmediate dispatch
 │       │   ├── notifications.js# GET/PATCH inbox + unread count
 │       │   ├── preferences.js  # GET/PUT /api/users/preferences
-│       │   ├── metrics.js      # GET /api/metrics (includes active workers)
+│       │   ├── metrics.js      # GET /api/metrics
 │       │   └── apikeys.js      # POST/GET/DELETE /api/keys
 │       └── socket/
-│           └── socketServer.js # Auth middleware, rooms, offline sync, Pub/Sub
+│           └── socketServer.js # Auth, rooms, offline sync, exports getIO/isOnline
 │
-├── worker/                     # npm package — BullMQ consumer
-│   └── src/
-│       ├── worker.js           # BullMQ Worker, DLQ handler, failed event
-│       ├── models.js           # Initializes shared models with worker's mongoose
-│       ├── config/
-│       │   ├── db.js
-│       │   └── redis.js
-│       └── processors/
-│           └── notificationProcessor.js  # Core job logic
+├── worker/                     # Deprecated — no-op stub kept for legacy deploy refs
 │
-├── frontend/
-│   ├── index.html              # Dashboard app shell
-│   ├── landing.html            # Public demo + integration docs page
-│   ├── styles.css              # Full design system
-│   ├── icons.jsx               # SVG icon component
-│   ├── charts.jsx              # Sparkline/bar chart components
-│   ├── data.jsx                # API layer + mock data (window.NTFX_AUTH)
-│   ├── screens.jsx             # Dashboard, Queue, Notifications, Settings, Metrics
-│   └── app.jsx                 # App shell, routing, Socket.io init, login
+├── frontend/                   # React-via-CDN dashboard + landing + integration guide
 │
-├── render.yaml                 # Render.com deployment (API + worker)
-├── .gitignore
+├── render.yaml                 # Render.com — single web service
 └── README.md
 ```
 
@@ -114,20 +100,17 @@ NotifyX/
 
 ## Features
 
-- **User Authentication** — Per-user account signup + password-based login with bcrypt hashing
-- **API Keys** — Per-app authentication for server-to-server integration (doesn't require user login)
-- **Async Job Queue** — BullMQ with 5 retry attempts and exponential backoff (5s → 10s → 20s → 40s)
-- **Dead Letter Queue** — Failed jobs moved to DLQ after max retries; replay endpoint available
-- **Real-time Delivery** — Redis Pub/Sub → Socket.io → browser, sub-50ms latency
-- **Offline Sync** — Notifications queued as `delivered: false`; pushed on next socket connection
-- **Two-layer Idempotency** — Prevents duplicate notifications even across Redis restarts
-- **Sliding Window Rate Limiting** — 10,000 req/min global + 50 req/min per user
-- **Batch Notifications** — Automatic grouping of repeated actions (likes, follows) within 30s window
-- **User Preferences** — inApp/email/push toggles, quiet hours, muted notification types
-- **Cache-aside** — User preferences cached in Redis (5 min TTL)
-- **Bull Board UI** — Visual queue monitor at `/admin/queues`
+- **User Authentication** — signup + password login with bcrypt hashing
+- **API Keys** — per-app, SHA-256 hashed, self-service or admin generated
+- **Async Dispatch** — `setImmediate` after a 202, no queue infrastructure to maintain
+- **Real-time Delivery** — direct `io.to(userId).emit()` from the same process; sub-50 ms when online
+- **Offline Sync** — undelivered rows pushed on next socket connect
+- **Two-layer Idempotency** — Redis `SET NX` + MongoDB sparse unique index
+- **In-memory Rate Limiting** — 10,000 req/min global + 50 req/min per user, zero Redis cost
+- **User Preferences** — inApp toggle, quiet hours, muted notification types
+- **Cache-aside** — preferences cached in Redis (5 min TTL); unread badge count cached (30 s TTL)
 - **30-day TTL** — MongoDB TTL index auto-archives old notifications
-- **Metrics Dashboard** — Real-time success/failure/queue counts with active worker tracking
+- **Metrics Endpoint** — running success/failure counters
 
 ---
 
@@ -135,99 +118,85 @@ NotifyX/
 
 ### Auth — User Accounts
 
-**Create Account (Sign up)**
 ```
 POST /api/auth/signup
-Body: {
-  "userId": "user_alice",
-  "password": "your_password_min_8_chars"
-}
+Body: { "userId": "user_alice", "password": "min 8 chars" }
 Response 201: { "token": "eyJ...", "userId": "user_alice", "expiresIn": "7d" }
-Errors:
-  - 400: "userId must be 3-30 characters"
-  - 400: "userId must be alphanumeric or underscore"
-  - 400: "Password must be at least 8 characters"
-  - 409: "User ID already taken"
-```
 
-**Sign In**
-```
 POST /api/auth/login
-Body: {
-  "userId": "user_alice",
-  "password": "your_password"
-}
+Body: { "userId": "user_alice", "password": "..." }
 Response 200: { "token": "eyJ...", "userId": "user_alice", "expiresIn": "7d" }
-Errors:
-  - 401: "Invalid credentials"
-```
 
-**Legacy — Admin Secret (for programmatic use)**
-```
-POST /api/auth/token
+POST /api/auth/token   # legacy admin secret
 Body: { "userId": "user_alice", "secret": "your_admin_secret" }
-Response: { "token": "eyJ...", "userId": "user_alice" }
 ```
 
 ### Send Notification
+
 ```
 POST /api/notify
-Auth: Bearer <token>  OR  ApiKey nx_<key>
-Header: Idempotency-Key: <unique-id>
-Body: {
-  "recipientId": "user_alice",
-  "senderId": "my-app",
-  "type": "like" | "comment" | "follow" | "mention",
-  "payload": { "message": "..." }
+Auth:  Bearer <token>  OR  ApiKey nx_<key>
+Body:  {
+  "recipientId":    "user_alice",
+  "senderId":       "my-app",
+  "type":           "like" | "comment" | "follow" | "mention",
+  "payload":        { "message": "..." },
+  "idempotencyKey": "<unique-id>"
 }
-Response 202: { "status": "queued", "jobId": "..." }
+Response 202: { "status": "accepted" }
 ```
 
+The request returns as soon as the row passes validation and the idempotency check. Dispatch (preference filtering, DB write, socket emit) runs in the same process via `setImmediate`.
+
 ### Notifications Inbox
+
 ```
 GET    /api/notifications               # paginated inbox
-GET    /api/notifications/unread-count  # Redis-cached badge count
+GET    /api/notifications/unread-count  # Redis-cached badge count (30s TTL)
 PATCH  /api/notifications/:id/read      # mark single read
 PATCH  /api/notifications/mark-all-read # bulk mark read
 ```
 
-### API Keys (admin)
+### API Keys
+
 ```
-POST   /api/keys           # generate key — Header: x-admin-secret
-GET    /api/keys           # list keys (hashes never returned)
-DELETE /api/keys/:id       # revoke key
+POST   /api/keys/self      # self-service — JWT auth
+GET    /api/keys/self
+DELETE /api/keys/self/:id
+
+POST   /api/keys           # admin — x-admin-secret header
+GET    /api/keys
+DELETE /api/keys/:id
 ```
 
 ### Preferences
+
 ```
 GET /api/users/preferences
 PUT /api/users/preferences
-Body: { "inApp": true, "email": false, "quietHours": { "enabled": false } }
+Body: { "inApp": true, "mutedTypes": [], "quietHours": { "enabled": false } }
 ```
 
 ### Metrics & Health
+
 ```
-GET /api/metrics   # success/failure/queue counts
-GET /health        # uptime + queue counts
+GET /api/metrics   # { delivery: { total, success, failed, successRate, failureRate } }
+GET /health        # { status, uptime } — DB readiness only, no Redis hit
 ```
 
 ---
 
 ## Running Locally
 
-**Prerequisites:** Node.js 18+, MongoDB, Redis (or use cloud — see below)
+**Prerequisites:** Node.js 18+, MongoDB, Redis (local or Upstash).
 
 **1. Clone and install**
 ```bash
 git clone https://github.com/YOUR_USERNAME/notifyx.git
 cd notifyx
 
-# Install shared dependencies (mongoose for shared models)
-npm install
-
-# Install server and worker deps
+npm install              # shared/models needs mongoose
 cd server && npm install
-cd ../worker && npm install
 ```
 
 **2. Configure environment**
@@ -236,65 +205,55 @@ cd ../worker && npm install
 ```
 PORT=3000
 NODE_ENV=development
-REDIS_URL=redis://localhost:6379         # or rediss://... for Upstash
-MONGODB_URI=mongodb://localhost:27017/notifyx  # or mongodb+srv://... for Atlas
-JWT_SECRET=your-secret-key-min-32-chars
-ADMIN_SECRET=notifyx-demo                 # for legacy /api/auth/token endpoint
-CORS_ORIGIN=http://localhost:8080
-```
-
-`worker/.env`:
-```
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6379          # or rediss://... for Upstash
 MONGODB_URI=mongodb://localhost:27017/notifyx
-WORKER_ID=worker-1                        # optional: worker name for monitoring
-WORKER_CONCURRENCY=5
+JWT_SECRET=your-secret-key-min-32-chars
+ADMIN_SECRET=notifyx-demo
+CORS_ORIGIN=http://localhost:8080
 ```
 
 **3. Start services**
 ```bash
-# Terminal 1 — API server
+# Terminal 1 — API server + dispatcher (one process)
 cd server && npm start
 
-# Terminal 2 — Worker
-cd worker && npm start
-
-# Terminal 3 — Frontend
+# Terminal 2 — Frontend
 cd frontend && npx serve . -l 8080
 ```
 
 **4. Open browser**
 - Dashboard: `http://localhost:8080/dashboard.html`
-- Landing page: `http://localhost:8080/` or `/index.html`
-- Bull Board: `http://localhost:3000/admin/queues`
+- Landing: `http://localhost:8080/` (or `/landing.html`)
+- Health: `http://localhost:3000/health`
 
-**Sign up** with any User ID and password (min 8 chars). You'll see the onboarding popup on first login showing how to use the system.
+Sign up with any User ID (3–30 alphanumeric) and password (min 8 chars).
 
 ---
 
 ## Cloud Setup (Free)
 
-| Service | Provider | Free tier |
-|---------|----------|-----------|
-| MongoDB | [Atlas](https://atlas.mongodb.com) | M0 — 512 MB |
-| Redis | [Upstash](https://upstash.com) | 10K commands/day |
-| API server | [Render.com](https://render.com) | 750 hrs/month |
-| Worker | [Render.com](https://render.com) | Background worker |
-| Frontend | [Vercel](https://vercel.com) | Unlimited static |
+| Service        | Provider                                  | Free tier               |
+|----------------|-------------------------------------------|-------------------------|
+| MongoDB        | [Atlas](https://atlas.mongodb.com)        | M0 — 512 MB             |
+| Redis          | [Upstash](https://upstash.com)            | 10K commands/day        |
+| API server     | [Render.com](https://render.com)          | 750 hrs/month           |
+| Frontend       | [Vercel](https://vercel.com)              | Unlimited static        |
+
+> No background-worker service is needed. Render's free web service can sleep when idle because nothing polls Redis in a loop.
 
 ---
 
 ## Deployment
 
-**Render (API + Worker)** — `render.yaml` is already configured:
+**Render (single web service)** — `render.yaml` is configured:
 1. Push to GitHub
 2. Render → New → Blueprint → connect repo
-3. Add env vars in Render dashboard (REDIS_URL, MONGODB_URI, JWT_SECRET, ADMIN_SECRET, CORS_ORIGIN)
+3. Set env vars: `REDIS_URL`, `MONGODB_URI`, `JWT_SECRET`, `ADMIN_SECRET`, `CORS_ORIGIN`
 4. Deploy
 
-**Vercel (Frontend)**:
-1. Vercel → Import → select repo → set root to `frontend/`
-2. Update `window.NOTIFYX_API_URL` in `frontend/index.html` to your Render URL
+**Vercel (Frontend):**
+1. Vercel → Import → root `frontend/`
+2. Update `window.NOTIFYX_API_URL` in `frontend/dashboard.html`
 
 ---
 
@@ -320,48 +279,39 @@ async function notifyUser(recipientId, senderId, type, message) {
     method: 'POST',
     headers: {
       'Authorization': `ApiKey ${API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': crypto.randomUUID(),
+      'Content-Type':  'application/json',
     },
     body: JSON.stringify({
-      recipientId,              // who receives the notification
-      senderId,                 // who triggered it (your app name)
-      type: 'comment',          // 'like' | 'comment' | 'follow' | 'mention'
-      payload: {                // custom data
-        message,
-        link: '/posts/123',
-      },
-      priority: 5,              // 1-10 (optional, default 5)
+      recipientId,
+      senderId,
+      type,                              // 'like' | 'comment' | 'follow' | 'mention'
+      payload:        { message, link: '/posts/123' },
+      idempotencyKey: crypto.randomUUID(),
+      priority:       5,                 // 1-10, optional
     }),
   });
-  
+
   if (!response.ok) {
-    const err = await response.json();
-    console.error('Failed to queue:', err);
+    console.error('Failed:', await response.json());
     return null;
   }
-  
-  const { jobId } = await response.json();
-  return jobId;
+
+  return response.json();                // { status: 'accepted' }
 }
 
-// Usage
 await notifyUser('user_alice', 'my-blog', 'comment', 'Great post!');
 ```
 
 ### For Browser Clients (Socket.io)
 
-**Step 1 — User logs in and gets JWT token**
+**Step 1 — Log in and get a JWT**
 ```js
-// When user signs up or logs in
-const response = await fetch('https://YOUR_API_URL/api/auth/signup', {
+const { token } = await fetch('https://YOUR_API_URL/api/auth/login', {
   method: 'POST',
-  body: JSON.stringify({
-    userId: 'user_alice',
-    password: 'secure_password',
-  }),
-});
-const { token } = await response.json();
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ userId: 'user_alice', password: '...' }),
+}).then(r => r.json());
+
 localStorage.setItem('jwt_token', token);
 ```
 
@@ -372,102 +322,42 @@ const socket = io('https://YOUR_API_URL', {
 });
 
 socket.on('notification', (notif) => {
-  // notif = {
-  //   _id: '...',
-  //   recipientId: 'user_alice',
-  //   senderId: 'my-blog',
-  //   type: 'comment',
-  //   payload: { message: 'Great post!', link: '/posts/123' },
-  //   delivered: true,
-  //   createdAt: '2026-05-01T...'
-  // }
-  
+  // { _id, recipientId, senderId, type, payload, delivered, createdAt }
   showNotificationToast(`${notif.senderId}: ${notif.payload.message}`);
 });
 
-socket.on('connect', () => {
-  console.log('Connected — missed notifications will be synced');
-});
-
-socket.on('disconnect', () => {
-  console.log('Disconnected — will re-sync on reconnect');
-});
+socket.on('connect',    () => console.log('connected — offline sync triggered'));
+socket.on('disconnect', () => console.log('disconnected — will re-sync on reconnect'));
 ```
 
 ### Notification Types
 
-Currently supported types:
-- `like` — User liked something
-- `comment` — User left a comment
-- `follow` — User followed an account
-- `mention` — User was mentioned
-- `batch` — Batched notifications (internal, auto-generated)
-
-Add more in `shared/constants.js` → `NOTIFICATION_TYPES`.
+Currently supported: `like`, `comment`, `follow`, `mention`. Add more in `shared/constants.js` → `NOTIFICATION_TYPES`, then update the Joi enum in `server/src/routes/notify.js`.
 
 ---
 
-## Dashboard Features
-
-### Onboarding Popup
-New users see an interactive onboarding tour on first login, guiding them through:
-1. Queue tab — send test notifications
-2. Notifications tab — view real-time arrivals
-3. Metrics — monitor delivery success rates
-4. Settings — configure delivery preferences
-
-Toggle dismissal with the `ntfx_onboarded` localStorage flag.
-
-### Quick Access Bar
-Dashboard bottom panel shows:
-- Dashboard URL (copy button)
-- Landing page URL
-- API base URL
-- Bull Board admin link
-
-### Metrics Dashboard
-Real-time metrics showing:
-- Queue depth (waiting, active, completed, failed, delayed jobs)
-- Delivery stats (success rate, failure rate)
-- Active workers (WORKER_ID + heartbeat)
-
-### Batch Notifications (Automatic)
-Repeated actions (likes, follows) within 30 seconds are automatically batched:
-```
-User A likes Post 1 → (0ms)
-User B likes Post 1 → (5ms) 
-User C likes Post 1 → (12ms) ✓ Batched as single notification
-     │
-     └─► "User A and 2 others liked your post"
-```
-
-Enable for notification types in `shared/constants.js` → `BATCH_TYPES`.
-
----
-
-## How the Notification Processor Works
+## How Dispatch Works
 
 ```
-job received
+POST /api/notify
     │
-    ├─► Layer 2 idempotency check (MongoDB)
-    │       └─ duplicate? → skip
+    ├─► Auth + Joi validate
+    ├─► Layer 1 idempotency:  SET NX idem:{key} EX 86400
+    │       └─ duplicate? → 409
+    ├─► res.status(202).json({ status: 'accepted' })
     │
-    ├─► Fetch user preferences (Redis cache → MongoDB fallback)
-    │       └─ inApp disabled? → skip
-    │       └─ type muted? → skip
-    │       └─ quiet hours? → skip
-    │
-    ├─► Check online presence (Redis key online:{userId})
-    │
-    ├─► Save Notification to MongoDB
-    │       └─ delivered: isOnline
-    │
-    ├─► If online: publish to Redis user:{userId} channel
-    │       └─ Socket.io picks up → emits to browser room
-    │
-    └─► If offline: stored as delivered:false
-            └─ Socket.io pushes on next connection
+    └─► setImmediate(() => dispatch(data))
+            │
+            ├─► fetch user preferences (Redis cache → Mongo fallback)
+            │       └─ inApp off / type muted / quiet hours? → skip
+            │
+            ├─► isOnline(recipientId)   // io.sockets.adapter.rooms.get(...)
+            │
+            ├─► Notification.create({ ..., delivered: isOnline })
+            │       └─ E11000 (Layer 2 idempotency) → skip
+            │
+            └─► if online: io.to(recipientId).emit('notification', notif)
+                else:      stored as delivered:false; pushed on next connect
 ```
 
 ---
@@ -475,101 +365,69 @@ job received
 ## FAQ
 
 **Q: How do I prevent duplicate notifications?**
-A: Every notification requires an `idempotencyKey`. NotifyX uses two layers:
-1. **Redis SETNX** at API boundary (immediate, 24h TTL)
-2. **MongoDB sparse unique index** in worker (safety net if Redis restarts)
+A: Pass a unique `idempotencyKey` per request. Two layers protect against duplicates:
+1. **Redis `SET NX`** at the API boundary (24h TTL) — catches the fast path
+2. **MongoDB sparse unique index** in the dispatcher — catches the rare case where Redis is wiped before the TTL expires
 
-If you send the same key twice, the second request gets a 409 "already queued" response.
+Sending the same key twice returns `409 Conflict` from layer 1, or is silently dropped by layer 2 if Redis was reset.
 
-**Q: What happens if the worker crashes?**
-A: BullMQ holds a lock on the job. If the worker dies, the lock expires (30s) and another worker picks up the job. The `attemptsMade` counter increments, so it still counts toward the 5-retry limit.
+**Q: What happens if dispatch fails (e.g., DB write throws)?**
+A: It logs the error and increments `metrics:failed`. There is no automatic retry — the 202 has already been sent to the caller. Callers that need stronger delivery guarantees should retry themselves using the same `idempotencyKey`. This is the trade-off of removing BullMQ: simpler, cheaper, but no built-in retry/DLQ.
 
-**Q: Can I rate limit per user?**
-A: Yes. The default is 50 notifications/min per recipient. Change in `middleware/rateLimiter.js`. Global limit is 10K/min to prevent API abuse.
+**Q: Can I rate-limit per user?**
+A: Yes. Default is 50 notifications/min per recipient, 10,000/min global. Counters live in an in-memory `Map` so they don't cost Redis commands. Change in `middleware/rateLimiter.js`.
 
-**Q: How do I scale workers?**
-A: Start multiple worker processes competing for the same queue:
-```bash
-# Terminal 1
-WORKER_ID=worker-1 npm start
-
-# Terminal 2
-WORKER_ID=worker-2 npm start
-
-# Terminal 3
-WORKER_ID=worker-3 npm start
-```
-
-Each registers a heartbeat key in Redis. The metrics API lists them.
-
-**Q: How do I add more notification types?**
-A: Update `shared/constants.js`:
-```js
-const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'mention', 'share', 'tag'];
-```
-
-Then update the validation in `server/src/routes/notify.js`.
+**Q: How does this scale?**
+A: For a portfolio demo, it doesn't need to. For a real deployment, scale the API server horizontally behind a load balancer. The cost of doing that: the rate limiter becomes per-instance (so bursts can slip through proportionally to the replica count), and a notification can only be emitted on the instance the recipient's socket is connected to — to fix that you'd reintroduce a real-time bus (Redis Pub/Sub adapter for Socket.io, or NATS). At which point your traffic justifies it.
 
 **Q: How are offline notifications synced?**
-A: When a user goes offline, unread notifications stay in MongoDB with `delivered: false`. On reconnect, the Socket.io server queries for them and pushes them immediately. The query is limited to prevent thundering-herd issues.
+A: Rows for offline users are saved with `delivered: false`. On socket `connect`, the server queries those rows for that user, marks them `delivered: true`, and emits each one over the new socket.
+
+**Q: How do I add more notification types?**
+A: Update `shared/constants.js` → `NOTIFICATION_TYPES` and the Joi enum in `server/src/routes/notify.js`.
 
 ---
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| "Port 3000 already in use" | Kill the process: `lsof -i :3000 \| awk 'NR==2 {print $2}' \| xargs kill` |
-| MongoDB connection fails | Check `MONGODB_URI` in `.env` — ensure whitelist IP or local server running |
-| Redis connection fails | Check `REDIS_URL` — ensure TLS (`rediss://`) if using Upstash |
-| Notifications not arriving | Check user preferences (`/api/users/preferences`) — type may be muted or notifications disabled |
-| Socket.io not connecting | Verify JWT token is valid and CORS is enabled on API server |
-| Batch notifications not working | Ensure type is in `BATCH_TYPES` in `shared/constants.js` |
-| Bull Board showing no queues | Restart the server or check Redis connection |
+| Issue                                | Solution                                                                                  |
+|--------------------------------------|-------------------------------------------------------------------------------------------|
+| "Port 3000 already in use"           | `lsof -i :3000 \| awk 'NR==2 {print $2}' \| xargs kill`                                   |
+| MongoDB connection fails             | Check `MONGODB_URI` — Atlas IP whitelist or local server running                          |
+| Redis connection fails               | Check `REDIS_URL` — use `rediss://` for Upstash TLS                                       |
+| Notifications not arriving           | Check `/api/users/preferences` — type may be muted, quiet hours active, or `inApp` off    |
+| Socket.io not connecting             | Verify JWT and `CORS_ORIGIN`                                                              |
+| `[Notify] dispatch failed` in logs   | Check Mongo connectivity; the 202 was returned but the row didn't land                    |
 
 ---
 
 ## Architecture Decisions
 
-**Why BullMQ instead of simple job queue?**
-- Persistence across restarts (jobs live in Redis, survives outages with backups)
-- Built-in retry with exponential backoff
-- Job inspection UI (Bull Board)
-- Dead Letter Queue for failed jobs
-- Delayed jobs (used for batch flushing)
-- Concurrency control per worker
+**Why no queue?**
+BullMQ provided durable retries, a DLQ, and concurrency control, but it polls Redis continuously (`BZPOPMIN` / `EVALSHA` / `ZRANGE`) regardless of load. On Upstash that was hundreds of thousands of commands per month with zero users, and on Render it pinned the worker process awake so the free tier couldn't sleep. For a portfolio demo with no incoming load, the cost-benefit clearly favored deletion. The dispatcher now runs inline via `setImmediate` — same async semantics, zero broker.
 
-**Why Redis Pub/Sub for Socket.io delivery?**
-- Multi-server deployment: workers don't know which API server instance a user is connected to
-- Publishing to a channel ensures all server instances receive the event
-- Decouples workers from Socket.io — workers never touch Socket.io code
+**Why no Redis Pub/Sub?**
+With one process owning both the HTTP API and the Socket.io server, the Pub/Sub bridge between worker → API was load-bearing for nothing. Direct `io.to(userId).emit()` is faster and free. Reintroduce Pub/Sub only when you scale to multiple replicas.
+
+**Why in-memory rate limiting?**
+The previous Redis-backed limiter cost one `INCR` (plus an `EXPIRE` on the first hit of each window) for every request to every rate-limited endpoint. That's the single biggest Redis hit on the hot path. An in-memory `Map` with a cleanup `setInterval` does the same job free of charge as long as you're on one instance.
 
 **Why two layers of idempotency?**
-- Layer 1 (Redis SETNX) catches 99% of duplicates in <1ms
-- Layer 2 (MongoDB unique index) protects if Redis restarts and SETNX key expires
-- Cost: minimal latency trade-off, maximum safety in production
+Layer 1 (Redis `SET NX`) catches ~99% of duplicates in <1 ms and gives the caller a clear 409. Layer 2 (MongoDB sparse unique index) is the safety net for the rare case where Redis is flushed or the key TTL elapses before the second attempt. Trade-off: minimal cost, eliminates the class of bug that's hardest to debug — silent duplicate notifications.
 
-**Why separate server and worker packages?**
-- Different scaling profiles (API server = I/O bound, worker = CPU/memory)
-- Independent restart/deployment cycles
-- Cleaner responsibility separation
-- Each can be optimized independently
-
-**Why MongoDB + Redis (not just Redis)?**
-- MongoDB: durable, queryable history (30-day TTL keeps disk bounded)
-- Redis: fast, pub/sub, locks, rate limiting, caching, job queue
-- Together: best of both — Redis for speed, MongoDB for persistence
+**Why Mongo + Redis?**
+MongoDB owns the durable inbox (30-day TTL keeps disk bounded). Redis owns idempotency, two small caches, and counters. Each tool does what it's actually good at — nothing more.
 
 ---
 
 ## Interview Prep
 
-See [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) for a 2-minute verbal script and 5 follow-up Q&As covering:
-- System architecture
-- Failure handling (retries, DLQ)
-- Scaling patterns (horizontal workers, multi-server Socket.io)
-- Idempotency across Redis restarts
-- Adding new notification channels (email, push)
+See [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) for a 2-minute verbal script and follow-up Q&As covering:
+- Architecture and the deliberate choice to drop BullMQ
+- Failure handling (no retries — trade-off accepted)
+- Scaling patterns (in-memory limits, when to reintroduce Pub/Sub)
+- Two-layer idempotency
+- Adding email / push channels
 
 ---
 

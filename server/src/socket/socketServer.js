@@ -1,17 +1,22 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { createRedisClient } = require('../config/redis');
 const { Notification } = require('../models');
 
-// Dedicated subscriber connection — must not be shared with commands
-const subscriber = createRedisClient('subscriber');
+let _io;
+const getIO = () => _io;
+
+const isOnline = (userId) => {
+  if (!_io) return false;
+  const room = _io.sockets.adapter.rooms.get(userId);
+  return Boolean(room && room.size > 0);
+};
 
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: { origin: process.env.CORS_ORIGIN || '*', methods: ['GET', 'POST'] },
   });
+  _io = io;
 
-  // Socket-level JWT authentication
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
@@ -29,13 +34,6 @@ const initSocket = (httpServer) => {
     console.log(`[Socket] Connected: ${userId}`);
     socket.join(userId);
 
-    // Mark user as online with 30s TTL
-    const { redis } = require('../config/redis');
-    await redis.set(`online:${userId}`, '1', 'EX', 30);
-
-    // Refresh presence every 20s while connected
-    const heartbeat = setInterval(() => redis.set(`online:${userId}`, '1', 'EX', 30), 20000);
-
     // Offline sync — push notifications that arrived while disconnected
     try {
       const pending = await Notification.find({
@@ -49,40 +47,19 @@ const initSocket = (httpServer) => {
           { recipientId: userId, delivered: false },
           { $set: { delivered: true } }
         );
-        for (const notif of pending) {
-          socket.emit('notification', notif);
-        }
+        for (const notif of pending) socket.emit('notification', notif);
         console.log(`[Socket] Synced ${pending.length} offline notifications to ${userId}`);
       }
     } catch (err) {
       console.error(`[Socket] Offline sync error: ${err.message}`);
     }
 
-    socket.on('disconnect', async () => {
-      clearInterval(heartbeat);
-      await redis.del(`online:${userId}`);
+    socket.on('disconnect', () => {
       console.log(`[Socket] Disconnected: ${userId}`);
-    });
-  });
-
-  // Subscribe to all user channels from Redis Pub/Sub
-  subscriber.connect().then(() => {
-    subscriber.psubscribe('user:*', (err) => {
-      if (err) console.error(`[PubSub] Subscribe error: ${err.message}`);
-      else     console.log('[PubSub] Subscribed to user:* channels');
-    });
-
-    subscriber.on('pmessage', (_pattern, channel, message) => {
-      const userId = channel.replace('user:', '');
-      try {
-        io.to(userId).emit('notification', JSON.parse(message));
-      } catch (err) {
-        console.error(`[PubSub] Parse error: ${err.message}`);
-      }
     });
   });
 
   return io;
 };
 
-module.exports = { initSocket };
+module.exports = { initSocket, getIO, isOnline };

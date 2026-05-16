@@ -5,43 +5,43 @@
 ## 2-Minute Verbal Script
 
 **What the system does (one sentence)**
-NotifyX is a distributed notification platform that accepts events from any application via HTTP, queues them reliably, and delivers them to connected browser clients in real time — with offline buffering, preference filtering, and rate limiting built in.
+NotifyX is a notification platform that accepts events from any application via HTTP and delivers them to connected browser clients in real time — with offline buffering, preference filtering, and rate limiting built in.
 
-**Why async queue instead of synchronous**
-A synchronous call would make the sender wait for delivery to complete — including database writes, preference lookups, and socket pushes — which could take hundreds of milliseconds and would fail entirely if any downstream step is slow or unavailable. The queue decouples send latency from delivery latency: the API acknowledges in under 5 ms and the worker processes in the background. If delivery fails, the job retries automatically with exponential backoff — nothing is lost.
+**Why async dispatch instead of synchronous response**
+A synchronous response would make the sender wait for preference lookups, the DB write, and the socket emit — easily a few hundred milliseconds of tail latency, and a hard failure for the caller if any downstream step is slow. Instead, the API validates, runs an idempotency check, returns `202 Accepted`, and runs dispatch inline via `setImmediate`. The caller is unblocked in under 5 ms; delivery happens on the next tick of the event loop.
 
-**Why workers are separate processes**
-The API server's job is to accept requests quickly and return. If processing logic lived in the same process, a slow job — or a memory leak in the processor — would degrade the entire API. Separate processes mean each can be scaled, deployed, and restarted independently. Redis is the only bridge: the server enqueues, the worker dequeues.
-
-**Why Redis Pub/Sub instead of workers talking to sockets directly**
-Workers don't know which server instance a user's socket is connected to — in a multi-server deployment there could be dozens of Socket.io server instances. Publishing to a Redis channel means every server instance receives the event and can forward it to the right socket room. The worker never needs to know about Socket.io; Socket.io never needs to know about BullMQ.
+**Why I removed the BullMQ worker**
+The original design had a separate worker process pulling jobs off a BullMQ queue and publishing to Redis Pub/Sub for the API server to forward to sockets. That gave durable retries and a DLQ — but at zero load, BullMQ's worker continuously polls Redis with `BZPOPMIN` / `EVALSHA` / `ZRANGE`. On Upstash that was hundreds of thousands of commands per month with no users, and on Render's free tier it kept the worker process awake so the dyno couldn't sleep. For this project the cost-benefit clearly inverted, so I deleted the queue, the worker process, and the Pub/Sub bridge. Dispatch now runs in the same process as the API and emits directly via `io.to(userId).emit()`. Simpler, cheaper, fewer moving parts. The trade-off is no automatic retry — callers retry themselves using the same `idempotencyKey`, which the two-layer idempotency guarantees is safe.
 
 **How failures are handled**
-BullMQ retries failed jobs up to 5 times with exponential backoff (5 → 10 → 20 → 40 → 80 seconds). If all retries exhaust, the job moves to a Dead Letter Queue — a separate BullMQ queue — where it can be inspected and replayed manually via the API. Idempotency keys prevent any duplicate notifications even when a job is retried.
+A failed dispatch logs the error and increments a `metrics:failed` counter — that's it. There's no DLQ. This is a deliberate trade-off: the 202 has already been sent, so retrying would be partial-failure semantics for the caller anyway. For a production system that needed at-least-once, I'd put a real queue back in (Kafka or a dedicated worker on a dedicated Redis); for a portfolio demo, this is correct.
 
-**How the system scales**
-Horizontally: spin up more worker processes — they all compete for jobs on the same BullMQ queue (competing consumers pattern). Each worker registers a heartbeat key in Redis so the metrics API can list active workers. The API server scales behind a load balancer; Redis Pub/Sub ensures Socket.io delivery works regardless of which server a client is connected to. Vertically: BullMQ concurrency is configurable per worker instance.
+**How idempotency works**
+Two layers. Layer 1 is `SET NX idem:{key} EX 86400` at the API boundary — catches the fast path in a single Redis command and returns `409 Conflict`. Layer 2 is a MongoDB sparse unique index on `idempotencyKey` in the dispatcher — catches the rare case where Redis was wiped between attempts. The second layer surfaces as an `E11000` error that the dispatcher catches and treats as a silent skip.
+
+**How the system would scale**
+Horizontally behind a load balancer. Two things would need to change. First, the rate limiter is an in-memory `Map` — fine on one instance, but becomes per-instance with replicas, so bursts can slip past the global ceiling. Second, `io.to(userId).emit()` only reaches sockets on the same instance, so I'd reintroduce a real-time bus (the Socket.io Redis adapter, or NATS) so emits fan out across replicas. The point is: I deliberately didn't pay that cost upfront — the project doesn't need it.
 
 **Key trade-offs**
-- Redis as the sole bridge is a single point of failure — mitigated by Upstash's HA clusters, but worth noting.
-- MongoDB is used for durable storage; Redis for ephemeral state and pub/sub. If Redis restarts, in-flight pub/sub events are lost — but the worker stores `delivered: false` first, so offline sync on reconnect recovers them.
-- The two-layer idempotency (Redis SETNX at API + sparse unique index at worker) adds latency but prevents the class of bugs that are hardest to debug in production: silent duplicates.
+- Redis is now used only for what genuinely needs it: idempotency, two small caches (preferences, unread badge), delivery counters. No queue, no Pub/Sub, no presence polling — those were the cost drivers.
+- In-memory rate limiting and in-memory online presence (via Socket.io rooms) buy a lot of Redis savings at the cost of being single-instance assumptions.
+- No retry/DLQ. Callers retry; idempotency keys keep that safe.
 
 ---
 
 ## 5 Likely Follow-Up Questions
 
-**Q1: What happens if the worker crashes mid-job?**
-BullMQ uses a lock mechanism — when a worker picks up a job it holds a lock (renewed every 30 seconds). If the worker crashes without completing, the lock expires and BullMQ makes the job available again for another worker to pick up. The job's `attemptsMade` counter increments, so it still counts toward the retry limit. This means at-least-once delivery is guaranteed.
+**Q1: What happens if the server crashes after returning 202 but before the dispatch completes?**
+The notification is lost — the row was never inserted. Since the caller got a 202, they assume it was accepted. This is the price of removing BullMQ. The mitigation is the idempotency key: a caller that wants stronger guarantees can implement a short retry on a timeout, and the two-layer idempotency makes those retries safe (no duplicates). For a real production system requiring at-least-once, you'd reintroduce a durable queue — but the queue can be a single-process in-process queue with disk-persistence, or a low-poll-rate alternative like Postgres-backed `pg-boss`, rather than BullMQ.
 
-**Q2: How would you prevent a thundering-herd of reconnecting users from overwhelming the server?**
-The offline sync query (`find({ delivered: false })`) runs per-user on reconnect. To prevent a spike — say after a deploy — you'd add a short random jitter delay before the sync query, and rate-limit the socket `connect` event handler. A secondary mitigation is pagination: only sync the most recent N undelivered notifications, not all of them.
+**Q2: Why setImmediate over a simple Promise that you don't await?**
+`setImmediate` schedules the callback for the next tick, after I/O callbacks. That means the response is fully flushed to the socket before dispatch starts touching Mongo or Redis. With an un-awaited async function, dispatch starts synchronously up to its first `await`, which can include the prefs-cache `redis.get` — small, but it adds latency to the response. `setImmediate` is the cleaner separation. For higher-throughput cases I'd use a bounded in-memory queue + worker pool, but for this load `setImmediate` is the right primitive.
 
-**Q3: Why BullMQ over a simple `setInterval` or `setTimeout`?**
-`setInterval` has no persistence — a restart loses all pending work. BullMQ persists jobs in Redis, gives you retry/backoff, concurrency control, job inspection UI (Bull Board), DLQ handling, delayed jobs, and job event hooks out of the box. The operational maturity difference is substantial for anything beyond a toy use case.
+**Q3: How does the idempotency key work across Redis restarts?**
+Layer 1 (Redis `SET NX`, 24h TTL) catches >99% of duplicates in <1 ms — the same key sent twice returns `409 Conflict` the second time. Layer 2 (MongoDB sparse unique index on `idempotencyKey`) is the safety net: if Redis is flushed or the TTL expires and the same key is retried, the dispatcher tries to insert and Mongo throws `E11000`. The dispatcher catches that and skips silently. The index is sparse so docs without an idempotencyKey don't participate in the uniqueness check.
 
-**Q4: How does the idempotency key work across Redis restarts?**
-There are two layers. Layer 1 (Redis SETNX with 24-hour TTL) is the fast path — it catches 99% of duplicates before they even enter the queue. Layer 2 (MongoDB sparse unique index on `idempotencyKey`) is the safety net — if Redis restarts and the SETNX key is gone, the worker will attempt to write to MongoDB and hit a `duplicate key` error, which is caught and logged as a skip. The sparse index means the field only participates in uniqueness enforcement when it has a value.
+**Q4: How are offline notifications delivered?**
+When dispatch runs, it checks `io.sockets.adapter.rooms.get(userId)?.size > 0` to determine if the recipient has a live socket. If yes, the row is saved with `delivered: true` and `io.to(userId).emit('notification', ...)` fires immediately. If no, the row is saved with `delivered: false` — nothing else happens. When the user reconnects, the Socket.io `connection` handler queries for unread + undelivered rows for that user, marks them delivered in bulk, and emits each one over the new socket. Trade-off: a thundering herd of reconnects after a deploy could spike Mongo. Mitigation would be a short random jitter on connect and pagination on the sync query.
 
-**Q5: How would you add email or push notification channels?**
-The worker processor already checks user preferences for `email` and `push` flags. Adding a channel means adding a new step in `notificationProcessor.js`: after saving to MongoDB, if `prefs.email` is true, enqueue a job on a separate `email-queue` processed by a dedicated email worker (SES, SendGrid, etc.). This keeps channel concerns isolated — the core notification flow doesn't change, and each channel can have its own retry policy, rate limits, and provider failover logic.
+**Q5: How would you add email or push channels?**
+The dispatcher already reads `prefs.email` and `prefs.push`, so the hook is there. For email, I'd call out to a transactional provider (SES, Resend, Postmark) — but probably not from the same `setImmediate` callback, because email APIs are slower (200–500 ms) and rate-limited, which would clog the event loop under load. Instead I'd fire-and-forget into a small in-process bounded queue with a tiny pool of workers, or post a message to a provider-managed queue (SQS for example). Push is similar — APNs/FCM through their SDKs. The point is that adding channels doesn't change the core notification flow; it adds independent fan-out steps that fail independently.

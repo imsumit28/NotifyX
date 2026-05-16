@@ -20,19 +20,6 @@ services:
         sync: false   # https://your-app.vercel.app
       - key: ADMIN_SECRET
         sync: false
-
-  - type: worker
-    name: notifyx-worker
-    runtime: node
-    rootDir: worker
-    buildCommand: npm install
-    startCommand: node src/worker.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: REDIS_URL
-        sync: false
-      - key: MONGODB_URI
-        sync: false
-      - key: WORKER_CONCURRENCY
-        value: "5"
+# Background worker service removed — BullMQ was burning Render compute hours
+# and Upstash command quota with continuous Redis polling. Notification
+# processing now runs inline in the API server via setImmediate.

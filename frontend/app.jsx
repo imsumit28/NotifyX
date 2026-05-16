@@ -278,11 +278,6 @@ const App = () => {
         })}
 
         <div className="nav-section-label">Resources</div>
-        <a className="nav-item" href={`${API_BASE}/admin/queues`} target="_blank" rel="noopener">
-          <Icon name="cube" size={16} className="nav-icon"/>
-          <span>Bull Board</span>
-          <Icon name="arrow-up" size={11} className="fg-faint" style={{marginLeft:'auto',transform:'rotate(45deg)'}}/>
-        </a>
         <a className="nav-item" href="index.html">
           <Icon name="help" size={16} className="nav-icon"/>
           <span>Docs &amp; Demo</span>

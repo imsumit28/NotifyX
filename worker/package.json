@@ -1,22 +1,10 @@
 {
   "name": "notifyx-worker",
   "version": "1.0.0",
-  "description": "NotifyX BullMQ worker — job processor",
+  "description": "Deprecated — BullMQ worker removed; processing moved into the API server.",
   "main": "src/worker.js",
   "scripts": {
-    "start": "node src/worker.js",
-    "start:w2": "cross-env WORKER_ID=worker-2 node src/worker.js",
-    "dev": "nodemon src/worker.js"
+    "start": "node src/worker.js"
   },
-  "dependencies": {
-    "bullmq": "^5.7.0",
-    "dotenv": "^16.4.5",
-    "ioredis": "^5.3.2",
-    "mongoose": "^8.3.4",
-    "winston": "^3.13.0"
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3",
-    "nodemon": "^3.1.1"
-  }
+  "dependencies": {}
 }

@@ -188,10 +188,10 @@ const Dashboard = ({ onNavigate }) => {
 
 // ─── Quick-access bar (shown on Dashboard) ────────────────────────────────────
 const QUICK_LINKS = [
-  { label: 'Dashboard',  href: () => `${location.origin}/dashboard.html`, icon: 'home',    hint: 'React app' },
-  { label: 'Landing',    href: () => `${location.origin}/`,               icon: 'help',    hint: 'Demo & docs' },
-  { label: 'API',        href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}`, icon: 'metrics', hint: 'REST base URL' },
-  { label: 'Bull Board', href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}/admin/queues`, icon: 'queue', hint: 'Queue monitor' },
+  { label: 'Dashboard',  href: () => `${location.origin}/dashboard.html`,                             icon: 'home',    hint: 'React app' },
+  { label: 'Landing',    href: () => `${location.origin}/`,                                           icon: 'help',    hint: 'Demo & docs' },
+  { label: 'API',        href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}`,          icon: 'metrics', hint: 'REST base URL' },
+  { label: 'Health',     href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}/health`,   icon: 'check',   hint: 'Readiness probe' },
 ];
 
 const QuickAccessBar = () => {
@@ -255,7 +255,7 @@ const Queue = () => {
   React.useEffect(() => {
     apiFetch('/api/metrics').then(m => {
       // Update counts displayed in the filter bar using real data
-      // Jobs list keeps mock data for demo; real jobs come via Bull Board
+      // Jobs list keeps mock data for demo — there is no real queue anymore
     }).catch(() => {});
   }, []);
 
