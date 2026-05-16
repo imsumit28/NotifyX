@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "setup:hooks": "git config core.hooksPath .githooks",
+    "scan:secrets:staged": "node scripts/secret-guard.cjs --mode=staged",
+    "scan:secrets:range": "node scripts/secret-guard.cjs --mode=range",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

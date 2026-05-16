@@ -7,14 +7,14 @@
 1. Go to [atlas.mongodb.com](https://atlas.mongodb.com)
 2. Create free M0 cluster
 3. Create database user with strong password
-4. Copy connection string: `mongodb+srv://user:password@cluster.mongodb.net/?appName=Cluster0`
+4. Copy connection string from MongoDB Atlas (format: `mongodb+srv://...`) and set as `MONGODB_URI`
 5. Add your IP to whitelist (or use 0.0.0.0/0 for development only)
 
 ### Step 2: Set Up Redis (Upstash)
 
 1. Go to [upstash.com](https://upstash.com)
 2. Create free Redis database
-3. Copy connection string: `rediss://default:password@host:port`
+3. Copy connection string from Upstash (format: `rediss://...`) and set as `REDIS_URL`
 4. Enable TLS (should be default)
 
 ### Step 3: Deploy API Server (Render)
@@ -28,8 +28,8 @@
 ```
 PORT=3000
 NODE_ENV=production
-REDIS_URL=rediss://default:password@host:port
-MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/?appName=Cluster0
+REDIS_URL=<YOUR_UPSTASH_REDIS_URL>
+MONGODB_URI=<YOUR_MONGODB_ATLAS_URI>
 JWT_SECRET=<generate with: openssl rand -hex 32>
 ADMIN_SECRET=<generate with: openssl rand -hex 16>
 CORS_ORIGIN=https://yourdomain.vercel.app
@@ -101,8 +101,8 @@ npm install --production
 ```bash
 export NODE_ENV=production
 export PORT=3000
-export REDIS_URL=rediss://...
-export MONGODB_URI=mongodb+srv://...
+export REDIS_URL=<YOUR_UPSTASH_REDIS_URL>
+export MONGODB_URI=<YOUR_MONGODB_ATLAS_URI>
 export JWT_SECRET=<strong-secret>
 export CORS_ORIGIN=https://yourdomain.com
 ```

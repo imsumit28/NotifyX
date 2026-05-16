@@ -181,9 +181,30 @@ Files that SHOULD be committed:
 - `.gitignore` (exclusion rules)
 - `SECURITY.md` (this file)
 
+### 11.1 Local Git Protection (Required)
+
+This repo includes local Git hooks that block commits/pushes when secret-like content or key files are detected.
+
+Enable hooks once per clone:
+
+```bash
+npm run setup:hooks
+```
+
+Manual scan commands:
+
+```bash
+# scan staged files
+npm run scan:secrets:staged
+
+# scan files changed compared to upstream branch
+npm run scan:secrets:range
+```
+
 ### 12. Security Checklist Before Deployment
 
 - [ ] `.env` files NOT committed to Git
+- [ ] `npm run setup:hooks` executed in local clone
 - [ ] `JWT_SECRET` is unique (generated with openssl)
 - [ ] `MONGODB_URI` uses `mongodb+srv://` and IP whitelist
 - [ ] `REDIS_URL` uses `rediss://` (TLS) for Upstash
