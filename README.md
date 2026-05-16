@@ -186,6 +186,24 @@ GET /health        # { status, uptime } — DB readiness only, no Redis hit
 
 ---
 
+## Live Demo
+
+**Production Deployment (Free Tier)**
+
+| Component | URL | Status |
+|-----------|-----|--------|
+| **Dashboard** | https://notifyx-sumit.vercel.app | Live |
+| **API Server** | https://notifyx-d60k.onrender.com | Live |
+| **Health Check** | https://notifyx-d60k.onrender.com/health | OK |
+
+**Quick Test:**
+1. Visit the [live dashboard](https://notifyx-sumit.vercel.app)
+2. Sign up with any User ID (3–30 alphanumeric) and password (min 8 chars)
+3. Go to **Queue** tab → Send a test notification
+4. Switch to **Notifications** tab → See it arrive in real-time
+
+---
+
 ## Running Locally
 
 **Prerequisites:** Node.js 18+, MongoDB, Redis (local or Upstash).
@@ -245,15 +263,19 @@ Sign up with any User ID (3–30 alphanumeric) and password (min 8 chars).
 
 ## Deployment
 
-**Render (single web service)** — `render.yaml` is configured:
-1. Push to GitHub
-2. Render → New → Blueprint → connect repo
-3. Set env vars: `REDIS_URL`, `MONGODB_URI`, `JWT_SECRET`, `ADMIN_SECRET`, `CORS_ORIGIN`
-4. Deploy
+**For detailed step-by-step deployment guide, see [DEPLOYMENT.md](./DEPLOYMENT.md) — covers:**
+- MongoDB Atlas setup (free 512MB tier)
+- Upstash Redis setup (free 10K commands/day)
+- Render backend deployment (auto-scaling, 750 hrs/month free)
+- Vercel frontend deployment (unlimited static hosting)
+- CORS configuration and testing
 
-**Vercel (Frontend):**
-1. Vercel → Import → root `frontend/`
-2. Update `window.NOTIFYX_API_URL` in `frontend/dashboard.html`
+**Quick Summary:**
+- Backend: Render + `render.yaml` (single web service, no worker)
+- Frontend: Vercel (root `frontend/`)
+- Database: MongoDB Atlas (M0 free tier)
+- Cache: Upstash Redis (free tier)
+- **Total cost: $0/month on free tier**
 
 ---
 
