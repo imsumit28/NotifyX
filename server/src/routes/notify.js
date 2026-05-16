@@ -59,9 +59,8 @@ const dispatch = async (data) => {
     throw err;
   }
 
-  // Best-effort metrics + unread-cache invalidation
+  // Best-effort metrics (unread counts fetched from DB, not cached in Redis)
   redis.incr('metrics:success').catch(() => {});
-  redis.del(`unread:${recipientId}`).catch(() => {});
 
   if (online) {
     const io = getIO();
