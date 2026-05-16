@@ -43,9 +43,9 @@ const Dashboard = ({ onNavigate }) => {
 
   const stats = metrics ? [
     { label: 'Total Dispatched',  value: metrics.delivery.total.toLocaleString(),   delta: null,        trend: 'neutral', hint: 'all time' },
-    { label: 'Active Jobs',       value: metrics.jobs.active.toLocaleString(),        delta: null,        trend: 'up',      hint: 'in queue' },
-    { label: 'Failed Jobs',       value: metrics.jobs.failed.toLocaleString(),        delta: null,        trend: 'down',    hint: 'pending retry' },
-    { label: 'Success Rate',      value: `${metrics.delivery.successRate}%`,          delta: null,        trend: 'up',      hint: 'delivery SLO' },
+    { label: 'Delivered',         value: metrics.delivery.success.toLocaleString(),  delta: null,        trend: 'up',      hint: 'successfully sent' },
+    { label: 'Failed',            value: metrics.delivery.failed.toLocaleString(),   delta: null,        trend: 'down',    hint: 'pending retry' },
+    { label: 'Success Rate',      value: `${metrics.delivery.successRate}%`,         delta: null,        trend: 'up',      hint: 'delivery SLO' },
   ] : [
     { label: 'Total dispatched', value: '2,847,193', delta: '+4.2%', trend: 'up',    hint: 'vs prior 24h' },
     { label: 'In flight',        value: '1,284',     delta: '+86',   trend: 'up',    hint: 'active workers' },
